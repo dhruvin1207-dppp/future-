@@ -14,6 +14,7 @@ const SECTION_ENV_KEYS = {
   newStudentInquiry: 'VITE_GOOGLE_SHEETS_SHEET_NEW_STUDENT_INQUIRY',
   exam: 'VITE_GOOGLE_SHEETS_SHEET_EXAM',
   activeSession: 'VITE_GOOGLE_SHEETS_SHEET_ACTIVE_SESSION',
+  fees: 'VITE_GOOGLE_SHEETS_SHEET_FEES',
 };
 
 export const getSectionEnvKey = (section) => SECTION_ENV_KEYS[section] || '';

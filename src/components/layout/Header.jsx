@@ -63,7 +63,7 @@ export default function Header({
             </span>
           )}
           
-          {(activePage === 'students' || activePage === 'timetable' || activePage === 'exam' || activePage === 'marks') && (
+          {(activePage === 'students' || activePage === 'timetable' || activePage === 'exam' || activePage === 'marks' || activePage === 'activeSession' || activePage === 'fees') && (
             <>
               <button
                 type="button"
@@ -75,7 +75,7 @@ export default function Header({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
                 <span className="hidden sm:inline">
-                  {activePage === 'students' ? 'Add Student' : activePage === 'exam' ? 'Add Exam' : activePage === 'marks' ? 'Add Marks' : 'Add Entry'}
+                  {activePage === 'students' ? 'Add Student' : activePage === 'exam' ? 'Add Exam' : activePage === 'marks' ? 'Add Marks' : activePage === 'activeSession' ? 'Add Session' : activePage === 'fees' ? 'Add Fee' : 'Add Entry'}
                 </span>
               </button>
               

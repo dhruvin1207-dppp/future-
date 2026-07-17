@@ -357,7 +357,7 @@ export default function SectionTablePage({
       <div className="rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
         <BaserowDataTable
           rows={filteredRows}
-          selectable={section === 'students' || section === 'timetable' || section === 'exam' || section === 'marks'}
+          selectable={section === 'students' || section === 'timetable' || section === 'exam' || section === 'marks' || section === 'activeSession' || section === 'fees'}
           selectedRowKeys={selectedRowKeys}
           onSelectToggle={onSelectToggle}
           onSelectAll={onSelectAll}

@@ -33,7 +33,8 @@ export const parseTaskRows = (rows) => {
     if (!taskName) continue;
 
     const task = {
-      id: `task-${i}`,
+      id: i + 1,               // 1-based spreadsheet row number (row 1 = header)
+      rowIndex: i + 1,         // same — for clarity in CRUD calls
       name: taskName || 'Untitled',
       assigneeId: assignIdx >= 0 ? row[assignIdx] : '',
       dueDate: dueDateIdx >= 0 ? row[dueDateIdx] : '',

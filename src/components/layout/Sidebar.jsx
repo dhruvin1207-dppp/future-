@@ -12,9 +12,10 @@ const Icon = ({ name }) => {
     inquiry: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
     exam: 'M8 4h8v2H8V4zm0 6h8v2H8v-2zm0 6h5v2H8v-2z',
     session: 'M15 7a2 2 0 012 2m-1.5 6l-3.5 3.5-2-2-2 2-2-2 1-1V12h1.5v-1.5h1.5v-1.5L12 7.5a4.5 4.5 0 116 6z',
+    fees: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   };
   const d = paths[name] || paths.grid;
-  const strokeIcons = ['check', 'calendar', 'inquiry', 'session'];
+  const strokeIcons = ['check', 'calendar', 'inquiry', 'session', 'fees'];
   const useStroke = strokeIcons.includes(name);
 
   return (

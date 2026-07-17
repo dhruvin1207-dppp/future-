@@ -11,11 +11,43 @@ const GOOGLE_SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
  */
 export const convertSheetRowsToObjects = (rows) => {
   if (!rows || rows.length === 0) return [];
-  const headers = rows[0];
+  
+  let headers = rows[0];
+  let startIndex = 1;
+
+  // Check if activeSession headers or data
+  const isActiveSessionHeaders = (h) => {
+    if (!h || h.length < 3) return false;
+    const col1 = String(h[1]).toLowerCase().trim();
+    const col2 = String(h[2]).toLowerCase().trim();
+    return (
+      col1.includes('phone') || col1 === '919876500000' ||
+      col2.includes('role') || col2 === 'student' || col2 === 'admin' || col2 === 'teacher' || col2 === 'reception'
+    );
+  };
+
+  // Resilient check if headers are missing for marks sheet data format
+  const isMarksDataRow = (row) => {
+    if (!row || row.length < 8) return false;
+    const isDate = /^\d{1,4}[-/]\d{1,2}[-/]\d{2,4}$/.test(String(row[1]).trim());
+    const isStudentId = /^[A-Z0-9]+$/i.test(String(row[4]).trim()) && !String(row[4]).toLowerCase().includes('student');
+    return isDate && isStudentId;
+  };
+
+  if (isMarksDataRow(rows[0])) {
+    headers = ["", "Date", "Subject", "Exam Type", "Student ID", "Student Name", "Total Marks", "Obtained Marks"];
+    startIndex = 0;
+  } else if (isActiveSessionHeaders(rows[0])) {
+    headers = ["", "Phone Number", "Active Role", "Active ID"];
+    const isPhoneData = /^\+?\d{8,15}$/.test(String(rows[0][1]).trim());
+    startIndex = isPhoneData ? 0 : 1;
+  }
+
   const objects = [];
-  for (let i = 1; i < rows.length; i++) {
+  for (let i = startIndex; i < rows.length; i++) {
     const row = rows[i];
-    const obj = { id: i }; // simulate Baserow row id
+    // id = actual 1-based spreadsheet row number so backend can use it directly
+    const obj = { id: i + 1 };
     headers.forEach((header, index) => {
       let val = row[index];
       if (val === undefined || val === null) {
@@ -27,7 +59,9 @@ export const convertSheetRowsToObjects = (rows) => {
         else if (valUpper === 'FALSE') val = false;
         else val = valTrim;
       }
-      obj[header] = val;
+      if (header) {
+        obj[header] = val;
+      }
     });
     objects.push(obj);
   }

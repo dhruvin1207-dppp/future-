@@ -789,6 +789,406 @@ app.delete('/api/marks/:rowId', async (req, res) => {
   }
 });
 
+// ---------------- ACTIVE SESSION ENDPOINTS ----------------
+
+const ACTIVE_SESSION_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_ACTIVE_SESSION || 'act_session';
+console.log('Active Session sheet name:', ACTIVE_SESSION_SHEET_NAME);
+
+// Helper to map active session request body to sheet columns (Column B, C, D)
+const mapActiveSessionBodyToRow = (body) => {
+  return [
+    String(body.phone || '').trim(),
+    String(body.activeRole || body.Active_role || body.active_role || '').trim(),
+    String(body.activeStudentId || body.Active_student_id || body.active_student_id || '').trim(),
+  ];
+};
+
+// 1. CREATE Active Session Record
+app.post('/api/activeSession', async (req, res) => {
+  console.log('POST /api/activeSession - Request Body:', req.body);
+  const data = req.body;
+
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = ACTIVE_SESSION_SHEET_NAME;
+
+    let newRows = [];
+    if (Array.isArray(data)) {
+      newRows = data.map(mapActiveSessionBodyToRow);
+    } else {
+      newRows = [mapActiveSessionBodyToRow(data)];
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!B1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: newRows,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Active Session Added Successfully',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error adding active session:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to save changes. Please try again.' });
+  }
+});
+
+// 2. UPDATE Active Session Record
+app.put('/api/activeSession/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`PUT /api/activeSession/${rowId} - Request Body:`, req.body);
+  const entry = req.body;
+
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = ACTIVE_SESSION_SHEET_NAME;
+
+    const rowNumber = parseInt(rowId); // id IS the 1-based spreadsheet row number
+    if (isNaN(rowNumber) || rowNumber <= 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID (must be > 1 to avoid header row).' });
+    }
+
+    const updatedRow = mapActiveSessionBodyToRow(entry);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!B${rowNumber}:D${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [updatedRow],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Active Session Updated Successfully',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error updating active session:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update active session.' });
+  }
+});
+
+// 3. DELETE Active Session Record(s) (supports comma-separated list of row IDs)
+app.delete('/api/activeSession/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`DELETE /api/activeSession/${rowId}`);
+
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = ACTIVE_SESSION_SHEET_NAME;
+
+    // Parse list of row IDs to delete, convert to 1-based spreadsheet row numbers
+    const rowNumbersToDelete = rowId.split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num > 1); // > 1 to never allow deleting the header row
+
+    if (rowNumbersToDelete.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
+    }
+
+    // Get Sheet numeric ID dynamically to perform deleteDimension batchUpdate
+    const spreadsheetMeta = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+    
+    if (!sheet) {
+      throw new Error(`Sheet ${sheetName} not found.`);
+    }
+    const sheetId = sheet.properties.sheetId;
+
+    // Sort indices in descending order before deleting dimension
+    rowNumbersToDelete.sort((a, b) => b - a);
+
+    const requests = rowNumbersToDelete.map(rowNum => ({
+      deleteDimension: {
+        range: {
+          sheetId: sheetId,
+          dimension: 'ROWS',
+          startIndex: rowNum - 1, // 0-based inclusive
+          endIndex: rowNum,       // 0-based exclusive
+        },
+      },
+    }));
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Active Session Deleted Successfully',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error deleting active session:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to delete active session. Please try again.' });
+  }
+});
+// ---------------- TASK MANAGEMENT ENDPOINTS ----------------
+
+const TASK_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_TASK_SHEET || 'task_management';
+const TEACHER_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_TEACHERS || 'teacher_info';
+console.log('Task sheet name:', TASK_SHEET_NAME);
+
+/** Map task body to a row array: [task, assignee_id, due_date, priority, status] */
+const mapTaskBodyToRow = (body) => [
+  String(body.name        || body.task   || '').trim(),
+  String(body.assigneeId  || body.assign || '').trim(),
+  String(body.dueDate     || body.due    || '').trim(),
+  String(body.priority    || 'Normal').trim(),
+  String(body.status      || 'Pending').trim(),
+];
+
+// GET teachers list for assignee dropdown
+app.get('/api/teachers-list', async (req, res) => {
+  try {
+    const sheets = getSheetsClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TEACHER_SHEET_NAME}!A1:Z500`,
+    });
+    const rows = result.data.values || [];
+    if (rows.length < 2) return res.json({ success: true, teachers: [] });
+
+    const headers = (rows[0] || []).map(h => String(h || '').toLowerCase().trim());
+    // idIdx: prefer exact "id" column or "teacher_id" — avoid matching "name" columns
+    const idIdx   = headers.findIndex(h => h === 'id' || h === 'teacher_id' || (h.includes('id') && !h.includes('name')));
+    // nameIdx: look for 'name' keyword only — never 'teacher' which also appears in the ID column
+    const nameIdx = headers.findIndex(h => h.includes('name'));
+
+    const teachers = rows.slice(1).filter(r => r.length).map(row => ({
+      id:   idIdx   >= 0 ? String(row[idIdx]   || '').trim() : '',
+      name: nameIdx >= 0 ? String(row[nameIdx] || '').trim() : '',
+    })).filter(t => t.id);
+
+    res.json({ success: true, teachers });
+  } catch (error) {
+    console.error('Error fetching teachers list:', error);
+    res.status(500).json({ success: false, teachers: [], message: error.message });
+  }
+});
+
+// 1. CREATE Task
+app.post('/api/tasks', async (req, res) => {
+  try {
+    const sheets = getSheetsClient();
+    const newRows = Array.isArray(req.body) ? req.body.map(mapTaskBodyToRow) : [mapTaskBodyToRow(req.body)];
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TASK_SHEET_NAME}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: newRows },
+    });
+    res.status(201).json({ success: true, message: 'Task Added Successfully', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error adding task:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to add task.' });
+  }
+});
+
+// 2. UPDATE Task
+app.put('/api/tasks/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  try {
+    const sheets = getSheetsClient();
+    const rowNumber = parseInt(rowId);
+    if (isNaN(rowNumber) || rowNumber <= 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID.' });
+    }
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TASK_SHEET_NAME}!A${rowNumber}:E${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [mapTaskBodyToRow(req.body)] },
+    });
+    res.json({ success: true, message: 'Task Updated Successfully', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update task.' });
+  }
+});
+
+// 3. DELETE Task(s)
+app.delete('/api/tasks/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  try {
+    const sheets = getSheetsClient();
+    const rowNumbersToDelete = rowId.split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num > 1);
+
+    if (rowNumbersToDelete.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
+    }
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === TASK_SHEET_NAME);
+    if (!sheet) throw new Error(`Sheet ${TASK_SHEET_NAME} not found.`);
+    const sheetId = sheet.properties.sheetId;
+
+    rowNumbersToDelete.sort((a, b) => b - a);
+    const requests = rowNumbersToDelete.map(rowNum => ({
+      deleteDimension: {
+        range: { sheetId, dimension: 'ROWS', startIndex: rowNum - 1, endIndex: rowNum },
+      },
+    }));
+
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+    res.json({ success: true, message: 'Task Deleted Successfully', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to delete task.' });
+  }
+});
+
+// ---------------- FEES ENDPOINTS ----------------
+
+const FEES_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_FEES || 'fees_info';
+console.log('Fees sheet name:', FEES_SHEET_NAME);
+
+/**
+ * Map fees request body to a row array matching ALL sheet columns A–X:
+ * A=Student_ID, B=name, C=TOTAL GROSS FEE, D=DISCOUNT, E=TOTAL NET FEE,
+ * F=PAID FEE, G=PENDING FEE,
+ * H=date,  I=detials1, J=ref1,  K=amount1,
+ * L=date2, M=detials2, N=ref2,  O=amount2,
+ * P=date3, Q=detials3, R=ref3,  S=amount3,
+ * T=date4, U=detials4, V=ref4,  W=amount4
+ */
+const mapFeesBodyToRow = (body) => [
+  String(body.studentId     || body.Student_ID    || body['Student ID']    || '').trim(),
+  String(body.name          || body.Name          || '').trim(),
+  String(body.totalGrossFee || body['TOTAL GROSS FEE'] || body.total_gross_fee || '').trim(),
+  String(body.discount      || body.DISCOUNT      || '').trim(),
+  String(body.totalNetFee   || body['TOTAL NET FEE']   || body.total_net_fee   || '').trim(),
+  String(body.paidFee       || body['PAID FEE']   || body.paid_fee    || '').trim(),
+  String(body.pendingFee    || body['PENDING FEE']|| body.pending_fee || '').trim(),
+  // Installment 1
+  String(body.date    || body.Date    || body.DATE    || '').trim(),
+  String(body.details1|| body.detials1|| body.DETIALS1|| '').trim(),
+  String(body.ref1    || body.REF1    || body.Ref1    || '').trim(),
+  String(body.amount1 || body.AMOUNT1 || body.Amount1 || '').trim(),
+  // Installment 2
+  String(body.date2   || body.Date2   || body.DATE2   || '').trim(),
+  String(body.details2|| body.detials2|| body.DETIALS2|| '').trim(),
+  String(body.ref2    || body.REF2    || body.Ref2    || '').trim(),
+  String(body.amount2 || body.AMOUNT2 || body.Amount2 || '').trim(),
+  // Installment 3
+  String(body.date3   || body.Date3   || body.DATE3   || '').trim(),
+  String(body.details3|| body.detials3|| body.DETIALS3|| '').trim(),
+  String(body.ref3    || body.REF3    || body.Ref3    || '').trim(),
+  String(body.amount3 || body.AMOUNT3 || body.Amount3 || '').trim(),
+  // Installment 4
+  String(body.date4   || body.Date4   || body.DATE4   || '').trim(),
+  String(body.details4|| body.detials4|| body.DETIALS4|| '').trim(),
+  String(body.ref4    || body.REF4    || body.Ref4    || '').trim(),
+  String(body.amount4 || body.AMOUNT4 || body.Amount4 || '').trim(),
+];
+
+// 1. CREATE Fees Record
+app.post('/api/fees', async (req, res) => {
+  console.log('POST /api/fees - Body:', req.body);
+  try {
+    const sheets = getSheetsClient();
+    const newRows = Array.isArray(req.body)
+      ? req.body.map(mapFeesBodyToRow)
+      : [mapFeesBodyToRow(req.body)];
+
+    // Append after last populated row in column A (Student_ID)
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${FEES_SHEET_NAME}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: newRows },
+    });
+
+    res.status(201).json({ success: true, message: 'Fee Record Added Successfully', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error adding fee record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to save fee record.' });
+  }
+});
+
+// 2. UPDATE Fees Record
+app.put('/api/fees/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`PUT /api/fees/${rowId} - Body:`, req.body);
+  try {
+    const sheets = getSheetsClient();
+    const rowNumber = parseInt(rowId); // id IS the 1-based spreadsheet row number
+    if (isNaN(rowNumber) || rowNumber <= 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID (must be > 1 to avoid header row).' });
+    }
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${FEES_SHEET_NAME}!A${rowNumber}:W${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [mapFeesBodyToRow(req.body)] },
+    });
+
+    res.json({ success: true, message: 'Fee Record Updated Successfully', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error updating fee record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update fee record.' });
+  }
+});
+
+// 3. DELETE Fees Record(s)
+app.delete('/api/fees/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`DELETE /api/fees/${rowId}`);
+  try {
+    const sheets = getSheetsClient();
+
+    const rowNumbersToDelete = rowId.split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num > 1); // > 1 to protect header row
+
+    if (rowNumbersToDelete.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
+    }
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === FEES_SHEET_NAME);
+    if (!sheet) throw new Error(`Sheet ${FEES_SHEET_NAME} not found.`);
+    const sheetId = sheet.properties.sheetId;
+
+    // Delete in descending order so row indices don't shift
+    rowNumbersToDelete.sort((a, b) => b - a);
+
+    const requests = rowNumbersToDelete.map(rowNum => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rowNum - 1, // 0-based inclusive
+          endIndex: rowNum,       // 0-based exclusive
+        },
+      },
+    }));
+
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+
+    res.json({ success: true, message: 'Fee Record Deleted Successfully', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error deleting fee record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to delete fee record.' });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);

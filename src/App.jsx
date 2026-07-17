@@ -17,6 +17,10 @@ import { addExamEntry, updateExamEntry, deleteExamEntries } from './services/exa
 import ExamModals from './components/exam/ExamModals';
 import { addMarksEntries, updateMarksEntry, deleteMarksEntries } from './services/marksService';
 import MarksModal from './components/marks/MarksModal';
+import { addActiveSessionEntry, updateActiveSessionEntry, deleteActiveSessionEntries } from './services/activeSessionService';
+import ActiveSessionModals from './components/activeSession/ActiveSessionModals';
+import { addFeesEntry, updateFeesEntry, deleteFeesEntries } from './services/feesService';
+import FeesModals from './components/fees/FeesModals';
 
 function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -35,6 +39,10 @@ function AppContent() {
   const [examModalMode, setExamModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
   const [marksModalOpen, setMarksModalOpen] = useState(false);
   const [marksModalMode, setMarksModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
+  const [activeSessionModalOpen, setActiveSessionModalOpen] = useState(false);
+  const [activeSessionModalMode, setActiveSessionModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
+  const [feesModalOpen, setFeesModalOpen] = useState(false);
+  const [feesModalMode, setFeesModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
   const [crudLoading, setCrudLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -86,6 +94,7 @@ function AppContent() {
         await deleteStudents(studentIds);
         setToast({ message: 'Student Deleted Successfully', type: 'success' });
       }
+      clearSheetCache(); // bust cache so re-fetch gets fresh data
       setRefreshTrigger(prev => prev + 1);
       setSelectedRows([]);
       setModalOpen(false);
@@ -114,6 +123,7 @@ function AppContent() {
         await deleteTimetableEntries(rowIds);
         setToast({ message: 'Timetable Entry Deleted Successfully', type: 'success' });
       }
+      clearSheetCache(); // bust cache so re-fetch gets fresh data
       setRefreshTrigger(prev => prev + 1);
       setSelectedRows([]);
       setTtModalOpen(false);
@@ -142,6 +152,7 @@ function AppContent() {
         await deleteExamEntries(rowIds);
         setToast({ message: 'Exam Entry Deleted Successfully', type: 'success' });
       }
+      clearSheetCache(); // bust cache so re-fetch gets fresh data
       setRefreshTrigger(prev => prev + 1);
       setSelectedRows([]);
       setExamModalOpen(false);
@@ -170,9 +181,68 @@ function AppContent() {
         await deleteMarksEntries(rowIds);
         setToast({ message: 'Marks Deleted Successfully', type: 'success' });
       }
+      clearSheetCache(); // bust cache so re-fetch gets fresh data
       setRefreshTrigger(prev => prev + 1);
       setSelectedRows([]);
       setMarksModalOpen(false);
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.message || 'Unable to save changes. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  const handleSaveActiveSession = async (formData) => {
+    setCrudLoading(true);
+    try {
+      if (activeSessionModalMode === 'add') {
+        await addActiveSessionEntry(formData);
+        setToast({ message: 'Active Session Entry Added Successfully', type: 'success' });
+      } else if (activeSessionModalMode === 'edit') {
+        const rowId = selectedRows[0]?.id; // Row sequential index (1-based from conversion)
+        await updateActiveSessionEntry(rowId, formData);
+        setToast({ message: 'Active Session Entry Updated Successfully', type: 'success' });
+      } else if (activeSessionModalMode === 'delete') {
+        const rowIds = selectedRows.map(r => r.id);
+        await deleteActiveSessionEntries(rowIds);
+        setToast({ message: 'Active Session Entry Deleted Successfully', type: 'success' });
+      }
+      clearSheetCache(); // bust cache so re-fetch gets fresh data
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedRows([]);
+      setActiveSessionModalOpen(false);
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.message || 'Unable to save changes. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  const handleSaveFees = async (formData) => {
+    setCrudLoading(true);
+    try {
+      if (feesModalMode === 'add') {
+        await addFeesEntry(formData);
+        setToast({ message: 'Fee Record Added Successfully', type: 'success' });
+      } else if (feesModalMode === 'edit') {
+        const rowId = selectedRows[0]?.id;
+        await updateFeesEntry(rowId, formData);
+        setToast({ message: 'Fee Record Updated Successfully', type: 'success' });
+      } else if (feesModalMode === 'delete') {
+        const rowIds = selectedRows.map(r => r.id);
+        await deleteFeesEntries(rowIds);
+        setToast({ message: 'Fee Record Deleted Successfully', type: 'success' });
+      }
+      clearSheetCache(); // bust cache so re-fetch gets fresh data
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedRows([]);
+      setFeesModalOpen(false);
     } catch (err) {
       setToast({
         message: err.response?.data?.message || 'Unable to save changes. Please try again.',
@@ -232,6 +302,12 @@ function AppContent() {
             } else if (activePage === 'marks') {
               setMarksModalMode('add');
               setMarksModalOpen(true);
+            } else if (activePage === 'activeSession') {
+              setActiveSessionModalMode('add');
+              setActiveSessionModalOpen(true);
+            } else if (activePage === 'fees') {
+              setFeesModalMode('add');
+              setFeesModalOpen(true);
             } else {
               setTtModalMode('add');
               setTtModalOpen(true);
@@ -247,6 +323,12 @@ function AppContent() {
             } else if (activePage === 'marks') {
               setMarksModalMode('edit');
               setMarksModalOpen(true);
+            } else if (activePage === 'activeSession') {
+              setActiveSessionModalMode('edit');
+              setActiveSessionModalOpen(true);
+            } else if (activePage === 'fees') {
+              setFeesModalMode('edit');
+              setFeesModalOpen(true);
             } else {
               setTtModalMode('edit');
               setTtModalOpen(true);
@@ -262,6 +344,12 @@ function AppContent() {
             } else if (activePage === 'marks') {
               setMarksModalMode('delete');
               setMarksModalOpen(true);
+            } else if (activePage === 'activeSession') {
+              setActiveSessionModalMode('delete');
+              setActiveSessionModalOpen(true);
+            } else if (activePage === 'fees') {
+              setFeesModalMode('delete');
+              setFeesModalOpen(true);
             } else {
               setTtModalMode('delete');
               setTtModalOpen(true);
@@ -324,6 +412,24 @@ function AppContent() {
         selectedRows={selectedRows}
         onClose={() => setMarksModalOpen(false)}
         onSave={handleSaveMarks}
+        loading={crudLoading}
+      />
+
+      <ActiveSessionModals
+        isOpen={activeSessionModalOpen}
+        mode={activeSessionModalMode}
+        sessionData={selectedRows[0]}
+        onClose={() => setActiveSessionModalOpen(false)}
+        onSave={handleSaveActiveSession}
+        loading={crudLoading}
+      />
+
+      <FeesModals
+        isOpen={feesModalOpen}
+        mode={feesModalMode}
+        feesData={selectedRows[0]}
+        onClose={() => setFeesModalOpen(false)}
+        onSave={handleSaveFees}
         loading={crudLoading}
       />
 

@@ -9,6 +9,7 @@ export const tableSections = [
   { id: 'exam', label: 'Exam', icon: 'exam' },
   { id: 'tasks', label: 'Tasks', icon: 'tasks' },
   { id: 'activeSession', label: 'Active Session', icon: 'session' },
+  { id: 'fees', label: 'Fees', icon: 'fees' },
 ];
 
 export const menuItems = [
@@ -29,4 +30,5 @@ export const pageTitles = {
   exam: { title: 'Exam', subtitle: 'Exam schedules and records' },
   tasks: { title: 'Tasks', subtitle: 'Task management and tracking' },
   activeSession: { title: 'Active Session', subtitle: 'Active user login roles & sessions' },
+  fees: { title: 'Fees', subtitle: 'Student fee records & payment tracking' },
 };
