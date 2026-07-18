@@ -5,6 +5,7 @@ import { fork } from 'child_process';
 export default defineConfig({
   plugins: [
     react(),
+    // Start the local Express backend only during development (not used on Vercel)
     {
       name: 'start-backend',
       configureServer(server) {
@@ -18,6 +19,8 @@ export default defineConfig({
   ],
   server: {
     allowedHosts: ['nell-pukka-kody.ngrok-free.dev'],
+    // LOCAL DEV ONLY: proxy /api calls to the local Express server on port 5000
+    // On Vercel, /api/* is handled by serverless functions in the /api folder
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
@@ -26,4 +29,3 @@ export default defineConfig({
     },
   },
 });
-// Trigger dev server restart for exam schedule append check
