@@ -1,11 +1,11 @@
-const {
+import {
   setCors, getSheetsClient, SPREADSHEET_ID,
   mapBodyToRow, ensureAndGetHeaders, deleteSheetRows
-} = require('./_lib/sheetsClient');
+} from './_lib/sheetsClient.js';
 
 const SHEET_NAME = 'student_info';
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -64,4 +64,4 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-};
+}

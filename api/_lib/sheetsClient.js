@@ -1,11 +1,11 @@
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
 const SPREADSHEET_ID = process.env.VITE_GOOGLE_SHEETS_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
 
 // CORS helper — call at the top of every handler
-function setCors(res) {
+export function setCors(res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -16,7 +16,7 @@ function setCors(res) {
 }
 
 // Build and return the Google Sheets client
-function getSheetsClient() {
+export function getSheetsClient() {
   if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY) {
     throw new Error(
       'Google Sheets Service Account Credentials are missing. ' +
@@ -31,9 +31,11 @@ function getSheetsClient() {
   return google.sheets({ version: 'v4', auth });
 }
 
+export { SPREADSHEET_ID };
+
 // --------------- ROW MAPPERS ---------------
 
-const mapBodyToRow = (body, headers, nextId = null) => {
+export const mapBodyToRow = (body, headers, nextId = null) => {
   return headers.map(header => {
     const key = header.toLowerCase().trim();
     if (key === 'id') return String(nextId || body.id || '').trim();
@@ -66,7 +68,7 @@ const mapBodyToRow = (body, headers, nextId = null) => {
   });
 };
 
-const mapTimetableBodyToRow = (body) => [
+export const mapTimetableBodyToRow = (body) => [
   String(body.day || '').toUpperCase().trim(),
   String(body.lecture || '').trim(),
   String(body.classType || '').toUpperCase().trim(),
@@ -75,7 +77,7 @@ const mapTimetableBodyToRow = (body) => [
   String(body.subject || '').toUpperCase().trim(),
 ];
 
-const mapExamBodyToRow = (body) => [
+export const mapExamBodyToRow = (body) => [
   '',
   String(body.examDate || '').trim(),
   String(body.day || '').trim(),
@@ -87,7 +89,7 @@ const mapExamBodyToRow = (body) => [
   String(body.section || '').trim(),
 ];
 
-const mapMarksBodyToRow = (body) => [
+export const mapMarksBodyToRow = (body) => [
   '',
   String(body.date || '').trim(),
   String(body.subject || '').trim(),
@@ -98,13 +100,13 @@ const mapMarksBodyToRow = (body) => [
   String(body.obtainMarks || '').trim(),
 ];
 
-const mapActiveSessionBodyToRow = (body) => [
+export const mapActiveSessionBodyToRow = (body) => [
   String(body.phone || '').trim(),
   String(body.activeRole || body.Active_role || body.active_role || '').trim(),
   String(body.activeStudentId || body.Active_student_id || body.active_student_id || '').trim(),
 ];
 
-const mapTaskBodyToRow = (body) => [
+export const mapTaskBodyToRow = (body) => [
   String(body.name || body.task || '').trim(),
   String(body.assigneeId || body.assign || '').trim(),
   String(body.dueDate || body.due || '').trim(),
@@ -112,7 +114,7 @@ const mapTaskBodyToRow = (body) => [
   String(body.status || 'Pending').trim(),
 ];
 
-const mapFeesBodyToRow = (body) => [
+export const mapFeesBodyToRow = (body) => [
   String(body.studentId || body.Student_ID || body['Student ID'] || '').trim(),
   String(body.name || body.Name || '').trim(),
   String(body.totalGrossFee || body['TOTAL GROSS FEE'] || body.total_gross_fee || '').trim(),
@@ -140,7 +142,7 @@ const mapFeesBodyToRow = (body) => [
 
 // --------------- SHARED HELPERS ---------------
 
-const ensureAndGetHeaders = async (sheets, sheetName) => {
+export const ensureAndGetHeaders = async (sheets, sheetName) => {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${sheetName}!A1:AZ1`,
@@ -167,7 +169,7 @@ const ensureAndGetHeaders = async (sheets, sheetName) => {
   return headers;
 };
 
-const deleteSheetRows = async (sheets, sheetName, rowNumbers) => {
+export const deleteSheetRows = async (sheets, sheetName, rowNumbers) => {
   const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
   if (!sheet) throw new Error(`Sheet "${sheetName}" not found.`);
@@ -180,19 +182,4 @@ const deleteSheetRows = async (sheets, sheetName, rowNumbers) => {
     },
   }));
   await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
-};
-
-module.exports = {
-  setCors,
-  getSheetsClient,
-  SPREADSHEET_ID,
-  mapBodyToRow,
-  mapTimetableBodyToRow,
-  mapExamBodyToRow,
-  mapMarksBodyToRow,
-  mapActiveSessionBodyToRow,
-  mapTaskBodyToRow,
-  mapFeesBodyToRow,
-  ensureAndGetHeaders,
-  deleteSheetRows,
 };
