@@ -173,7 +173,7 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
           </div>
 
           {/* Priority & Status */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Priority</label>
               <select

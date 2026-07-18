@@ -17,16 +17,16 @@ export default function StatCard({ title, value, icon, accent = 'blue', format }
 
   return (
     <div
-      className={`rounded-xl border bg-gradient-to-br p-5 shadow-card transition hover:shadow-md dark:shadow-card-dark ${colorMap[accent]}`}
+      className={`rounded-xl border bg-gradient-to-br p-3.5 sm:p-5 shadow-card transition hover:shadow-md dark:shadow-card-dark ${colorMap[accent]}`}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">{title}</p>
+          <p className="mt-1.5 text-xl font-bold text-slate-900 dark:text-white sm:mt-2 sm:text-3xl">
             {display}
           </p>
         </div>
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/80 text-current shadow-sm dark:bg-slate-800/80">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/80 text-current shadow-sm dark:bg-slate-800/80 sm:h-11 sm:w-11">
           {icon}
         </div>
       </div>

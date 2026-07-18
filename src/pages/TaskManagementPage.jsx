@@ -89,27 +89,27 @@ export default function TaskManagementPage() {
       <div className="rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
         <div className="border-b border-slate-100 px-4 py-4 sm:px-6 dark:border-slate-800">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">All Tasks</h3>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                🔴 Live data from Google Sheets · {tasks.length} tasks
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white sm:text-lg">All Tasks</h3>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
+                🔴 Live · {tasks.length} tasks
               </p>
             </div>
             <div className="flex items-center gap-2">
               {lastUpdated && (
-                <span className="text-xs text-slate-400 dark:text-slate-500">
+                <span className="hidden text-xs text-slate-400 dark:text-slate-500 sm:inline">
                   Updated {new Date(lastUpdated).toLocaleTimeString()}
                 </span>
               )}
               {/* Add Task Button */}
               <button
                 type="button" onClick={openAdd} disabled={crudLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm active:scale-95 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm active:scale-95 disabled:opacity-50"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
-                Add Task
+                <span>Add Task</span>
               </button>
             </div>
           </div>

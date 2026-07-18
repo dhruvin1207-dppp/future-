@@ -2,6 +2,7 @@ import { getStatusColor, getPriorityColor } from '../../services/taskManagementS
 
 /**
  * Task Table Component — with inline Edit and Delete buttons per row
+ * On mobile: card-based layout; on sm+: traditional table layout
  */
 export default function TaskTable({ tasks = [], onEdit, onDelete }) {
   if (!tasks.length) {
@@ -29,76 +30,136 @@ export default function TaskTable({ tasks = [], onEdit, onDelete }) {
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-slate-200 dark:border-slate-700">
-            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Task</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Assignee ID</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Due Date</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Priority</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Status</th>
-            {(onEdit || onDelete) && (
-              <th className="px-4 py-3 text-right text-sm font-semibold text-slate-900 dark:text-white">Actions</th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((task) => (
-            <tr key={task.id} className="group border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
-              <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
-                <div className="max-w-xs truncate font-medium">{task.name}</div>
-              </td>
-              <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                {task.assigneeId || '—'}
-              </td>
-              <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                {task.dueDate || '—'}
-              </td>
-              <td className="px-4 py-3 text-sm">
-                <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getPriorityBgColor(task.priority)}`}>
-                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm">
-                <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBgColor(task.status)}`}>
-                  {task.rawStatus}
-                </span>
-              </td>
+    <>
+      {/* Mobile card layout */}
+      <div className="sm:hidden space-y-3">
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="flex-1 text-sm font-medium text-slate-900 dark:text-white leading-snug">
+                {task.name}
+              </p>
+              {/* Action buttons */}
               {(onEdit || onDelete) && (
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onEdit && (
-                      <button
-                        type="button"
-                        onClick={() => onEdit(task)}
-                        title="Edit task"
-                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 hover:border-brand-blue hover:text-brand-blue dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-brand-blue transition-colors"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        type="button"
-                        onClick={() => onDelete(task)}
-                        title="Delete task"
-                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 hover:border-rose-500 hover:text-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-rose-500 transition-colors"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </td>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {onEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(task)}
+                      title="Edit task"
+                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 hover:border-brand-blue hover:text-brand-blue dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-brand-blue transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(task)}
+                      title="Delete task"
+                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 hover:border-rose-500 hover:text-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-rose-500 transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBgColor(task.priority)}`}>
+                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+              </span>
+              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBgColor(task.status)}`}>
+                {task.rawStatus}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {task.assigneeId && <span>👤 {task.assigneeId}</span>}
+              {task.dueDate && <span>📅 {task.dueDate}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Task</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Assignee ID</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Due Date</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Priority</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Status</th>
+              {(onEdit || onDelete) && (
+                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-900 dark:text-white">Actions</th>
               )}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <tr key={task.id} className="group border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
+                  <div className="max-w-xs truncate font-medium">{task.name}</div>
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                  {task.assigneeId || '—'}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                  {task.dueDate || '—'}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getPriorityBgColor(task.priority)}`}>
+                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBgColor(task.status)}`}>
+                    {task.rawStatus}
+                  </span>
+                </td>
+                {(onEdit || onDelete) && (
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(task)}
+                          title="Edit task"
+                          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 hover:border-brand-blue hover:text-brand-blue dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-brand-blue transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(task)}
+                          title="Delete task"
+                          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 hover:border-rose-500 hover:text-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-rose-500 transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

@@ -115,7 +115,7 @@ export default function StudentDashboardPage({ data }) {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Choose a student to view their performance data
           </p>
-          <div className="mt-4 max-w-xs">
+          <div className="mt-4 w-full max-w-xs">
             <StudentIdFilter
               label="Student ID"
               value={effectiveStudentId}
@@ -138,7 +138,7 @@ export default function StudentDashboardPage({ data }) {
               Class: <span className="font-medium text-slate-900 dark:text-white">{selectedStudent.className}</span>
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:p-6">
+          <div className="grid grid-cols-2 gap-3 p-3 sm:gap-4 sm:p-6 lg:grid-cols-3">
             <StatCard
               title="Attendance %"
               value={filteredAttendance.percentage}

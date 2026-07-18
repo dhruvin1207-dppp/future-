@@ -3,13 +3,32 @@
 @tailwind utilities;
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+  }
+
   body {
     @apply font-sans antialiased;
+    /* Prevent horizontal overflow on mobile */
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }
 
 @layer utilities {
   .gradient-accent {
     @apply bg-gradient-to-r from-brand-blue to-brand-purple;
+  }
+
+  /* Smooth scrolling for sidebar nav */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
   }
 }

@@ -32,28 +32,42 @@ const Icon = ({ name }) => {
 export default function Sidebar({ activeItem, onNavigate, isOpen, onClose }) {
   return (
     <>
+      {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
+
       <aside
         className={`fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-900 lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
+        {/* Brand header with close button on mobile */}
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-5 dark:border-slate-800">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gradient-accent text-white font-bold text-xs">
             {brand.shortName}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm leading-snug text-slate-900 dark:text-white">
               {brand.name}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">{brand.tagline}</p>
           </div>
+          {/* Close button — only visible on mobile when sidebar is open */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 lg:hidden dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+            aria-label="Close menu"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">

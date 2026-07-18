@@ -275,7 +275,7 @@ export default function SectionTablePage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+      <div className="flex flex-col gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300 sm:flex-row sm:items-center sm:justify-between">
         <span>
           Live data from Google Sheets · Sheet: <strong>{data?.tableId}</strong> · {data?.rows?.length || 0} rows
         </span>
@@ -354,7 +354,7 @@ export default function SectionTablePage({
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
+      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
         <BaserowDataTable
           rows={filteredRows}
           selectable={section === 'students' || section === 'timetable' || section === 'exam' || section === 'marks' || section === 'activeSession' || section === 'fees'}

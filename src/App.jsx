@@ -358,7 +358,7 @@ function AppContent() {
           crudLoading={crudLoading}
         />
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
+        <main className="px-3 py-4 sm:px-6 lg:px-8">
           {loading ? (
             <div className="flex min-h-[60vh] items-center justify-center">
               <div className="text-center">

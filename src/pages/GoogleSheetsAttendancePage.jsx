@@ -75,7 +75,7 @@ export default function GoogleSheetsAttendanceTable() {
       )}
 
       {/* Status Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300">
+      <div className="flex flex-col gap-1 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300 sm:flex-row sm:items-center sm:justify-between">
         <span>
           🔴 Live data from Google Sheets · {summaryByStudent.length} students · Real-time sync
         </span>
@@ -85,7 +85,7 @@ export default function GoogleSheetsAttendanceTable() {
       </div>
 
       {/* Data Table */}
-      <div className="rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
+      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
         {rows.length ? (
           <BaserowDataTable rows={rows} />
         ) : (
