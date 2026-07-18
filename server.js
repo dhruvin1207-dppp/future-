@@ -494,13 +494,48 @@ app.delete('/api/timetable/:rowId', async (req, res) => {
   }
 });
 
+// Helper: Format date strictly to DD-MM-YYYY (with hyphens) converting MM-DD-YYYY to DD-MM-YYYY
+const formatDateToDDMMYYYY = (input) => {
+  if (input === null || input === undefined) return '';
+  const str = String(input).trim();
+  if (!str || str === '—') return str;
+  const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${String(d).padStart(2, '0')}-${String(m).padStart(2, '0')}-${y}`;
+  }
+  const partsMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (partsMatch) {
+    const p1 = parseInt(partsMatch[1], 10);
+    const p2 = parseInt(partsMatch[2], 10);
+    const year = partsMatch[3];
+    if (p1 > 12) {
+      return `${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}-${year}`;
+    }
+    if (p2 > 12) {
+      return `${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}-${year}`;
+    }
+    const month = String(p1).padStart(2, '0');
+    const day = String(p2).padStart(2, '0');
+    return `${day}-${month}-${year}`;
+  }
+  const dateObj = new Date(str);
+  if (!isNaN(dateObj.getTime())) {
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  return str;
+};
+
 // ---------------- EXAM ENDPOINTS ----------------
 
 // Helper to map exam request body to sheet columns
 const mapExamBodyToRow = (body) => {
   return [
     '', // Column A (empty)
-    String(body.examDate || '').trim(),
+    formatDateToDDMMYYYY(body.examDate || ''),
     String(body.day || '').trim(),
     String(body.time || '').trim(),
     String(body.subject || '').trim(),
@@ -655,7 +690,7 @@ console.log('Marks sheet name:', MARKS_SHEET_NAME);
 const mapMarksBodyToRow = (body) => {
   return [
     '', // Column A (empty)
-    String(body.date || '').trim(),
+    formatDateToDDMMYYYY(body.date || ''),
     String(body.subject || '').trim(),
     String(body.examType || '').trim(),
     String(body.studentId || '').trim(),

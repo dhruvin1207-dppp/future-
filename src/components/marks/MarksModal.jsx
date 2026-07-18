@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchSectionData } from '../../services/sectionService';
+import { formatDateToDDMMYYYY } from '../../utils/dateUtils';
 
 // ---- helpers ----
 const pick = (obj, keys) => {
@@ -90,7 +91,7 @@ export default function MarksModal({
       } else if (mode === 'edit' && selectedRows.length > 0) {
         const row = selectedRows[0];
         setEditForm({
-          date: row['date'] || row['Date'] || '',
+          date: formatDateToDDMMYYYY(row['date'] || row['Date'] || ''),
           subject: row['subject'] || row['Subject'] || '',
           examType: row['exam type'] || row['Exam Type'] || row['examType'] || '',
           studentId: row['Student id'] || row['Student ID'] || row['student_id'] || row['studentId'] || '',
@@ -200,7 +201,7 @@ export default function MarksModal({
 
       if (!tempErrors[sId]) {
         entriesToSave.push({
-          date: selectedExam.exam_date,
+          date: formatDateToDDMMYYYY(selectedExam.exam_date),
           subject: selectedExam.subject,
           examType: selectedExam.examType,
           studentId: sId,
@@ -254,7 +255,10 @@ export default function MarksModal({
       return;
     }
 
-    onSave(editForm);
+    onSave({
+      ...editForm,
+      date: formatDateToDDMMYYYY(editForm.date),
+    });
   };
 
   // Handle Delete Confirmation
