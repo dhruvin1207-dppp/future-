@@ -1,26 +1,19 @@
-import axios from 'axios';
+import api from './api';
 
-/**
- * Add a new task
- */
 export const addTask = async (taskData) => {
-  const response = await axios.post('/api/tasks', taskData);
+  const response = await api.post('/api/tasks', taskData);
   return response.data;
 };
 
-/**
- * Update an existing task by row ID
- */
 export const updateTask = async (rowId, taskData) => {
-  const response = await axios.put(`/api/tasks/${rowId}`, taskData);
+  const response = await api.put(`/api/tasks/${rowId}`, taskData);
   return response.data;
 };
 
-/**
- * Delete one or more tasks
- */
-export const deleteTaskEntries = async (rowIds) => {
+export const deleteTasks = async (rowIds) => {
   const idsParam = Array.isArray(rowIds) ? rowIds.join(',') : rowIds;
-  const response = await axios.delete(`/api/tasks/${idsParam}`);
+  const response = await api.delete(`/api/tasks/${idsParam}`);
   return response.data;
 };
+
+export const deleteTaskEntries = deleteTasks;

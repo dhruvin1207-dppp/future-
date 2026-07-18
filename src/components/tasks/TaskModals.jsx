@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 
 const EMPTY_FORM = {
   name: '',
@@ -39,7 +39,7 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
   useEffect(() => {
     if (!isOpen || mode === 'delete') return;
     setTeachersLoading(true);
-    axios.get('/api/teachers-list')
+    api.get('/api/teachers-list')
       .then(res => setTeachers(res.data.teachers || []))
       .catch(() => setTeachers([]))
       .finally(() => setTeachersLoading(false));

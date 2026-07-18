@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api';
 
 /**
  * Add a new student record
@@ -6,7 +6,7 @@ import axios from 'axios';
  * @returns {Promise<Object>} API Response
  */
 export const addStudent = async (studentData) => {
-  const response = await axios.post('/api/students', studentData);
+  const response = await api.post('/api/students', studentData);
   return response.data;
 };
 
@@ -17,7 +17,7 @@ export const addStudent = async (studentData) => {
  * @returns {Promise<Object>} API Response
  */
 export const updateStudent = async (studentId, studentData) => {
-  const response = await axios.put(`/api/students/${studentId}`, studentData);
+  const response = await api.put(`/api/students/${studentId}`, studentData);
   return response.data;
 };
 
@@ -28,6 +28,6 @@ export const updateStudent = async (studentId, studentData) => {
  */
 export const deleteStudents = async (studentIds) => {
   const idsParam = Array.isArray(studentIds) ? studentIds.join(',') : studentIds;
-  const response = await axios.delete(`/api/students/${idsParam}`);
+  const response = await api.delete(`/api/students/${idsParam}`);
   return response.data;
 };

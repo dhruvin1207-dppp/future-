@@ -8,8 +8,20 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+const ALLOWED_ORIGINS = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : '*';
+
+app.use(cors({
+  origin: ALLOWED_ORIGINS,
+  credentials: true,
+}));
 app.use(express.json());
+
+// Health Check Endpoint for cloud hosting (e.g. Render, Railway)
+app.get('/', (req, res) => {
+  res.json({ status: 'online', message: 'Future Learning Backend API is running', timestamp: new Date().toISOString() });
+});
 
 const SPREADSHEET_ID = process.env.VITE_GOOGLE_SHEETS_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
