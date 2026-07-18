@@ -20,11 +20,34 @@ export default defineConfig({
   server: {
     allowedHosts: ['nell-pukka-kody.ngrok-free.dev'],
     // LOCAL DEV ONLY: proxy /api calls to the local Express server on port 5000
-    // On Vercel, /api/* is handled by serverless functions in the /api folder
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('xlsx')) {
+              return 'vendor-excel';
+            }
+            if (id.includes('axios')) {
+              return 'vendor-axios';
+            }
+            return 'vendor-libs';
+          }
+        },
       },
     },
   },
