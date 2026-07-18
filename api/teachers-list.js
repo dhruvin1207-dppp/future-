@@ -1,14 +1,13 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID
-} from './_lib/sheetsClient.js';
+} = require('./_lib/sheetsClient');
 
 const TEACHER_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_TEACHERS || 'teacher_info';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET /api/teachers-list
   if (req.method === 'GET') {
     try {
       const sheets = getSheetsClient();
@@ -36,4 +35,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

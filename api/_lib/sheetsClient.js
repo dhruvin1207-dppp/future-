@@ -1,11 +1,11 @@
-import { google } from 'googleapis';
+const { google } = require('googleapis');
 
 const SPREADSHEET_ID = process.env.VITE_GOOGLE_SHEETS_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
 
 // CORS helper — call at the top of every handler
-export function setCors(res) {
+function setCors(res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -16,11 +16,11 @@ export function setCors(res) {
 }
 
 // Build and return the Google Sheets client
-export function getSheetsClient() {
+function getSheetsClient() {
   if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY) {
     throw new Error(
       'Google Sheets Service Account Credentials are missing. ' +
-      'Please add GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY to your environment variables.'
+      'Please add GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY to your Vercel environment variables.'
     );
   }
   const auth = new google.auth.JWT({
@@ -31,11 +31,9 @@ export function getSheetsClient() {
   return google.sheets({ version: 'v4', auth });
 }
 
-export { SPREADSHEET_ID };
-
 // --------------- ROW MAPPERS ---------------
 
-export const mapBodyToRow = (body, headers, nextId = null) => {
+const mapBodyToRow = (body, headers, nextId = null) => {
   return headers.map(header => {
     const key = header.toLowerCase().trim();
     if (key === 'id') return String(nextId || body.id || '').trim();
@@ -68,7 +66,7 @@ export const mapBodyToRow = (body, headers, nextId = null) => {
   });
 };
 
-export const mapTimetableBodyToRow = (body) => [
+const mapTimetableBodyToRow = (body) => [
   String(body.day || '').toUpperCase().trim(),
   String(body.lecture || '').trim(),
   String(body.classType || '').toUpperCase().trim(),
@@ -77,7 +75,7 @@ export const mapTimetableBodyToRow = (body) => [
   String(body.subject || '').toUpperCase().trim(),
 ];
 
-export const mapExamBodyToRow = (body) => [
+const mapExamBodyToRow = (body) => [
   '',
   String(body.examDate || '').trim(),
   String(body.day || '').trim(),
@@ -89,7 +87,7 @@ export const mapExamBodyToRow = (body) => [
   String(body.section || '').trim(),
 ];
 
-export const mapMarksBodyToRow = (body) => [
+const mapMarksBodyToRow = (body) => [
   '',
   String(body.date || '').trim(),
   String(body.subject || '').trim(),
@@ -100,13 +98,13 @@ export const mapMarksBodyToRow = (body) => [
   String(body.obtainMarks || '').trim(),
 ];
 
-export const mapActiveSessionBodyToRow = (body) => [
+const mapActiveSessionBodyToRow = (body) => [
   String(body.phone || '').trim(),
   String(body.activeRole || body.Active_role || body.active_role || '').trim(),
   String(body.activeStudentId || body.Active_student_id || body.active_student_id || '').trim(),
 ];
 
-export const mapTaskBodyToRow = (body) => [
+const mapTaskBodyToRow = (body) => [
   String(body.name || body.task || '').trim(),
   String(body.assigneeId || body.assign || '').trim(),
   String(body.dueDate || body.due || '').trim(),
@@ -114,7 +112,7 @@ export const mapTaskBodyToRow = (body) => [
   String(body.status || 'Pending').trim(),
 ];
 
-export const mapFeesBodyToRow = (body) => [
+const mapFeesBodyToRow = (body) => [
   String(body.studentId || body.Student_ID || body['Student ID'] || '').trim(),
   String(body.name || body.Name || '').trim(),
   String(body.totalGrossFee || body['TOTAL GROSS FEE'] || body.total_gross_fee || '').trim(),
@@ -142,7 +140,7 @@ export const mapFeesBodyToRow = (body) => [
 
 // --------------- SHARED HELPERS ---------------
 
-export const ensureAndGetHeaders = async (sheets, sheetName) => {
+const ensureAndGetHeaders = async (sheets, sheetName) => {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${sheetName}!A1:AZ1`,
@@ -169,8 +167,7 @@ export const ensureAndGetHeaders = async (sheets, sheetName) => {
   return headers;
 };
 
-// Deletes rows by their 1-based spreadsheet row numbers (descending order to avoid shift)
-export const deleteSheetRows = async (sheets, sheetName, rowNumbers) => {
+const deleteSheetRows = async (sheets, sheetName, rowNumbers) => {
   const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
   if (!sheet) throw new Error(`Sheet "${sheetName}" not found.`);
@@ -183,4 +180,19 @@ export const deleteSheetRows = async (sheets, sheetName, rowNumbers) => {
     },
   }));
   await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+};
+
+module.exports = {
+  setCors,
+  getSheetsClient,
+  SPREADSHEET_ID,
+  mapBodyToRow,
+  mapTimetableBodyToRow,
+  mapExamBodyToRow,
+  mapMarksBodyToRow,
+  mapActiveSessionBodyToRow,
+  mapTaskBodyToRow,
+  mapFeesBodyToRow,
+  ensureAndGetHeaders,
+  deleteSheetRows,
 };

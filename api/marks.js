@@ -1,14 +1,13 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID, mapMarksBodyToRow, deleteSheetRows
-} from './_lib/sheetsClient.js';
+} = require('./_lib/sheetsClient');
 
 const SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_MARKS || 'marks';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // POST /api/marks — Create
   if (req.method === 'POST') {
     const data = req.body;
     try {
@@ -35,4 +34,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

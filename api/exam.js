@@ -1,14 +1,13 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID, mapExamBodyToRow, deleteSheetRows
-} from './_lib/sheetsClient.js';
+} = require('./_lib/sheetsClient');
 
 const SHEET_NAME = 'exam_schedule';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // POST /api/exam — Create
   if (req.method === 'POST') {
     const entry = req.body;
     if (!entry.examDate || !entry.subject || !entry.className) {
@@ -16,7 +15,7 @@ export default async function handler(req, res) {
     }
     try {
       const sheets = getSheetsClient();
-      const newRow = mapExamBodyToRow(entry).slice(1); // Exclude empty column A
+      const newRow = mapExamBodyToRow(entry).slice(1);
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET_NAME}!B1`,
@@ -31,4 +30,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

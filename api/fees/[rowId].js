@@ -1,16 +1,15 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID, mapFeesBodyToRow, deleteSheetRows
-} from '../_lib/sheetsClient.js';
+} = require('../_lib/sheetsClient');
 
 const FEES_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_FEES || 'fees_info';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { rowId } = req.query;
 
-  // PUT /api/fees/:rowId — Update
   if (req.method === 'PUT') {
     const rowNumber = parseInt(rowId);
     if (isNaN(rowNumber) || rowNumber <= 1) {
@@ -31,7 +30,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // DELETE /api/fees/:rowId — Delete (supports comma-separated IDs)
   if (req.method === 'DELETE') {
     const rowNumbers = rowId.split(',')
       .map(id => parseInt(id.trim()))
@@ -50,4 +48,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

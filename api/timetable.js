@@ -1,14 +1,13 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID, mapTimetableBodyToRow, deleteSheetRows
-} from './_lib/sheetsClient.js';
+} = require('./_lib/sheetsClient');
 
 const SHEET_NAME = 'TimeTable';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // POST /api/timetable — Create
   if (req.method === 'POST') {
     const entry = req.body;
     if (!entry.day || !entry.lecture || !entry.className) {
@@ -30,4 +29,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

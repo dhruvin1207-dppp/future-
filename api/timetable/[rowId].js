@@ -1,16 +1,15 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID, mapTimetableBodyToRow, deleteSheetRows
-} from '../_lib/sheetsClient.js';
+} = require('../_lib/sheetsClient');
 
 const SHEET_NAME = 'TimeTable';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { rowId } = req.query;
 
-  // PUT /api/timetable/:rowId — Update
   if (req.method === 'PUT') {
     const entry = req.body;
     const rowNumber = parseInt(rowId) + 1;
@@ -32,7 +31,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // DELETE /api/timetable/:rowId — Delete (supports comma-separated IDs)
   if (req.method === 'DELETE') {
     const rowNumbers = rowId.split(',')
       .map(id => parseInt(id.trim()) + 1)
@@ -51,4 +49,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

@@ -1,15 +1,14 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID,
   mapBodyToRow, ensureAndGetHeaders, deleteSheetRows
-} from './_lib/sheetsClient.js';
+} = require('./_lib/sheetsClient');
 
 const SHEET_NAME = 'student_info';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // POST /api/students — Create
   if (req.method === 'POST') {
     const student = req.body;
     if (!student.studentId || !student.studentName) {
@@ -26,7 +25,6 @@ export default async function handler(req, res) {
       const idColIdx = headers.findIndex(h => String(h).toLowerCase().trim() === 'id');
       const studentIdColIdx = headers.findIndex(h => String(h).toLowerCase().trim() === 'student_id');
 
-      // Duplicate check
       if (studentIdColIdx !== -1) {
         const duplicate = rows.slice(1).find(r =>
           String(r[studentIdColIdx]).trim().toLowerCase() === String(student.studentId).trim().toLowerCase()
@@ -36,7 +34,6 @@ export default async function handler(req, res) {
         }
       }
 
-      // Auto-increment ID
       let maxId = 0;
       if (idColIdx !== -1) {
         rows.slice(1).forEach(r => {
@@ -67,4 +64,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

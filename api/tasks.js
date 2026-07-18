@@ -1,14 +1,13 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID, mapTaskBodyToRow, deleteSheetRows
-} from './_lib/sheetsClient.js';
+} = require('./_lib/sheetsClient');
 
 const TASK_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_TASK_SHEET || 'task_management';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // POST /api/tasks — Create
   if (req.method === 'POST') {
     try {
       const sheets = getSheetsClient();
@@ -29,4 +28,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};

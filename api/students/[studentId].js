@@ -1,17 +1,16 @@
-import {
+const {
   setCors, getSheetsClient, SPREADSHEET_ID,
   mapBodyToRow, ensureAndGetHeaders, deleteSheetRows
-} from '../_lib/sheetsClient.js';
+} = require('../_lib/sheetsClient');
 
 const SHEET_NAME = 'student_info';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { studentId } = req.query;
 
-  // PUT /api/students/:studentId — Update
   if (req.method === 'PUT') {
     const student = req.body;
     try {
@@ -56,7 +55,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // DELETE /api/students/:studentId — Delete (supports comma-separated IDs)
   if (req.method === 'DELETE') {
     try {
       const sheets = getSheetsClient();
@@ -96,4 +94,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-}
+};
