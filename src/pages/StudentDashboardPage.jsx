@@ -94,7 +94,7 @@ export default function StudentDashboardPage({ data }) {
     if (studentRecords.length === 0) return 0;
     const avgPercent = studentRecords.reduce((acc, m) => acc + (m.percent || 0), 0) / studentRecords.length;
     return Math.round(avgPercent);
-  }, [selectedStudentId, charts.marksRecords, charts.averageMarks]);
+  }, [effectiveStudentId, charts.marksRecords]);
 
   // Determine performance rating label and card accent
   const performanceRating = useMemo(() => {

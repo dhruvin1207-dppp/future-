@@ -41,9 +41,23 @@ const isValidSubject = (name) => {
 };
 
 const pick = (row, keys) => {
+  if (!row) return null;
+  const rowKeys = Object.keys(row);
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
       return row[key];
+    }
+    const normKey = String(key).toLowerCase().replace(/[\s_-]+/g, '');
+    const matchedKey = rowKeys.find(
+      (rk) => String(rk).toLowerCase().replace(/[\s_-]+/g, '') === normKey
+    );
+    if (
+      matchedKey !== undefined &&
+      row[matchedKey] !== undefined &&
+      row[matchedKey] !== null &&
+      row[matchedKey] !== ''
+    ) {
+      return row[matchedKey];
     }
   }
   return null;
