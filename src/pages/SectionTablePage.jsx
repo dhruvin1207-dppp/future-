@@ -13,6 +13,20 @@ const SECTION_HINTS = {
   },
 };
 
+const getRowField = (row, ...fieldNames) => {
+  if (!row) return '';
+  const keys = Object.keys(row);
+  for (const name of fieldNames) {
+    const matchedKey = keys.find(
+      (k) => k.toLowerCase().replace(/[\s_-]+/g, '') === name.toLowerCase().replace(/[\s_-]+/g, '')
+    );
+    if (matchedKey !== undefined && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+      return String(row[matchedKey]);
+    }
+  }
+  return '';
+};
+
 export default function SectionTablePage({
   section,
   title,
@@ -31,13 +45,7 @@ export default function SectionTablePage({
   const envKey = getSectionEnvKey(section);
 
   const getRowStudentId = (row) => {
-    if (!row) return '';
-    const keys = Object.keys(row);
-    const studentIdKey = keys.find((k) => {
-      const lower = k.toLowerCase().trim();
-      return lower === 'student_id' || lower === 'student id' || lower === 'studentid';
-    });
-    return studentIdKey ? String(row[studentIdKey]).trim() : String(row.id);
+    return getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
   };
 
   // BaserowDataTable always passes String(row.id) as the rowKey
@@ -91,8 +99,8 @@ export default function SectionTablePage({
     const rowsSrc = data?.rows || [];
     const studentMap = new Map();
     rowsSrc.forEach((row) => {
-      const id = row['Student id'] || row['Student ID'] || row['student_id'] || row['studentId'] || row['roll_no'] || row['Roll No'];
-      const name = row['Name'] || row['student_name'] || row['Student Name'] || row['name'] || '';
+      const id = getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
+      const name = getRowField(row, 'name', 'studentName', 'student_name', 'Student Name');
       if (id) {
         const normId = String(id).trim();
         if (!studentMap.has(normId)) {
@@ -115,7 +123,7 @@ export default function SectionTablePage({
     const rowsSrc = data?.rows || [];
     const set = new Set();
     rowsSrc.forEach((row) => {
-      const c = row['class'] || row['Class'] || row['className'] || row['Class Name'] || row['ClassName'];
+      const c = getRowField(row, 'class', 'className', 'class_name', 'course');
       if (c) set.add(String(c).trim());
     });
     return Array.from(set).sort();
@@ -128,60 +136,15 @@ export default function SectionTablePage({
     if (section === 'marks') {
       if (effectiveStudentId) {
         rowsFiltered = rowsSrc.filter((row) => {
-          const id = (
-            row['Student ID'] || row['Student id'] || row['student_id'] || row['studentId'] || row['roll_no'] || row['Roll No'] || ''
-          ).toString().trim();
+          const id = getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
           return normalizeStudentId(id) === normalizeStudentId(effectiveStudentId);
         });
       }
 
-      const parseMarksDate = (dateStr) => {
-        if (!dateStr) return new Date(0);
-        const str = String(dateStr).trim();
-        
-        if (str.includes('/')) {
-          const parts = str.split('/');
-          if (parts.length === 3) {
-            let month = parseInt(parts[0], 10) - 1;
-            let day = parseInt(parts[1], 10);
-            let year = parseInt(parts[2], 10);
-            if (year < 100) year += 2000;
-            return new Date(year, month, day);
-          }
-        }
-        
-        if (str.includes('-')) {
-          const parts = str.split('-');
-          if (parts.length === 3) {
-            if (parts[0].length === 4) {
-              let year = parseInt(parts[0], 10);
-              let month = parseInt(parts[1], 10) - 1;
-              let day = parseInt(parts[2], 10);
-              return new Date(year, month, day);
-            } else {
-              let day = parseInt(parts[0], 10);
-              let month = parseInt(parts[1], 10) - 1;
-              let year = parseInt(parts[2], 10);
-              if (year < 100) year += 2000;
-              return new Date(year, month, day);
-            }
-          }
-        }
-        
-        const d = new Date(str);
-        return isNaN(d.getTime()) ? new Date(0) : d;
-      };
-
-      rowsFiltered = [...rowsFiltered].sort((a, b) => {
-        const dateA = parseMarksDate(a['date'] || a['Date']);
-        const dateB = parseMarksDate(b['date'] || b['Date']);
-        return dateB - dateA;
-      });
-
       if (query) {
         const q = String(query).trim().toLowerCase();
         rowsFiltered = rowsFiltered.filter((row) => {
-          const subject = (row['subject'] || row['Subject'] || '').toString().toLowerCase();
+          const subject = getRowField(row, 'subject').toLowerCase();
           return subject.includes(q);
         });
       }
@@ -189,10 +152,10 @@ export default function SectionTablePage({
       const subj = String(examSubject || '').trim().toLowerCase();
       rowsFiltered = rowsSrc.filter((row) => {
         try {
-          const classVal = String(row['class'] || row['Class'] || row['className'] || row['Class Name'] || '').trim();
+          const classVal = getRowField(row, 'class', 'className', 'class_name', 'course').trim();
           if (classFilter !== 'All Classes' && classVal !== classFilter) return false;
           if (!subj) return true;
-          const subject = String(row['subject'] || row['Subject'] || '').toLowerCase();
+          const subject = getRowField(row, 'subject').toLowerCase();
           if (subject.includes(subj)) return true;
           return JSON.stringify(row).toLowerCase().includes(subj);
         } catch (e) {
@@ -201,21 +164,37 @@ export default function SectionTablePage({
       });
     }
 
-    if (section === 'exam') {
+    if (section === 'exam' || section === 'marks') {
       const parseDate = (dateStr) => {
         if (!dateStr) return new Date(0);
-        const parts = String(dateStr).trim().split('-');
-        if (parts.length !== 3) return new Date(0);
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
+        const str = String(dateStr).trim();
+        const normalized = str.replace(/\//g, '-');
+        const parts = normalized.split('-');
+        if (parts.length !== 3) {
+          const parsed = new Date(str);
+          return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+        }
+        
+        let day, month, year;
+        if (parts[0].length === 4) {
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          day = parseInt(parts[2], 10);
+        } else {
+          day = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          year = parseInt(parts[2], 10);
+          if (year < 100) {
+            year += 2000;
+          }
+        }
         return new Date(year, month, day);
       };
 
       rowsFiltered = [...rowsFiltered].sort((a, b) => {
-        const dateA = parseDate(a['exam_date'] || a['exam date'] || a['Exam Date'] || a['Exam_Date']);
-        const dateB = parseDate(b['exam_date'] || b['exam date'] || b['Exam Date'] || b['Exam_Date']);
-        return dateB - dateA;
+        const dateA = parseDate(getRowField(a, 'exam_date', 'examDate', 'date', 'Date'));
+        const dateB = parseDate(getRowField(b, 'exam_date', 'examDate', 'date', 'Date'));
+        return dateA - dateB; // Ascending order (earliest date first)
       });
     }
 
@@ -357,7 +336,7 @@ export default function SectionTablePage({
       <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 dark:shadow-card-dark">
         <BaserowDataTable
           rows={filteredRows}
-          selectable={section === 'students' || section === 'timetable' || section === 'exam' || section === 'marks' || section === 'activeSession' || section === 'fees'}
+          selectable={section === 'students' || section === 'timetable' || section === 'exam' || section === 'activeSession' || section === 'fees' || section === 'marks' || section === 'teachers' || section === 'newStudentInquiry'}
           selectedRowKeys={selectedRowKeys}
           onSelectToggle={onSelectToggle}
           onSelectAll={onSelectAll}

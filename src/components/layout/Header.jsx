@@ -24,9 +24,11 @@ export default function Header({
     activePage === 'students' ||
     activePage === 'timetable' ||
     activePage === 'exam' ||
-    activePage === 'marks' ||
     activePage === 'activeSession' ||
-    activePage === 'fees';
+    activePage === 'fees' ||
+    activePage === 'marks' ||
+    activePage === 'teachers' ||
+    activePage === 'newStudentInquiry';
 
   const addLabel =
     activePage === 'students'
@@ -39,6 +41,10 @@ export default function Header({
       ? 'Add Session'
       : activePage === 'fees'
       ? 'Add Fee'
+      : activePage === 'teachers'
+      ? 'Add Teacher'
+      : activePage === 'newStudentInquiry'
+      ? 'Add Inquiry'
       : 'Add Entry';
 
   return (

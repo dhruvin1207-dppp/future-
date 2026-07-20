@@ -8,7 +8,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const ALLOWED_ORIGINS = process.env.FRONTEND_URL 
+const ALLOWED_ORIGINS = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
   : '*';
 
@@ -151,7 +151,7 @@ app.post('/api/students', async (req, res) => {
 
     const rows = currentData.data.values || [];
     const headers = await ensureAndGetHeaders(sheets, sheetName);
-    
+
     const idColIdx = headers.findIndex(h => String(h).toLowerCase().trim() === 'id');
     const studentIdColIdx = headers.findIndex(h => String(h).toLowerCase().trim() === 'student_id');
 
@@ -217,7 +217,7 @@ app.put('/api/students/:studentId', async (req, res) => {
 
     const rows = currentData.data.values || [];
     const headers = await ensureAndGetHeaders(sheets, sheetName);
-    
+
     const studentIdColIdx = headers.findIndex(h => String(h).toLowerCase().trim() === 'student_id');
 
     if (studentIdColIdx === -1) {
@@ -226,7 +226,7 @@ app.put('/api/students/:studentId', async (req, res) => {
 
     // Locate Row (1-based sheet row number is rowIndex + 1)
     const rowIndex = rows.findIndex(r => String(r[studentIdColIdx]).trim().toLowerCase() === String(studentId).trim().toLowerCase());
-    
+
     if (rowIndex === -1) {
       return res.status(404).json({ success: false, message: `Student ID "${studentId}" not found.` });
     }
@@ -281,7 +281,7 @@ app.delete('/api/students/:studentId', async (req, res) => {
 
     const rows = currentData.data.values || [];
     const headers = await ensureAndGetHeaders(sheets, sheetName);
-    
+
     const studentIdColIdx = headers.findIndex(h => String(h).toLowerCase().trim() === 'student_id');
 
     if (studentIdColIdx === -1) {
@@ -306,7 +306,7 @@ app.delete('/api/students/:studentId', async (req, res) => {
       spreadsheetId: SPREADSHEET_ID,
     });
     const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
-    
+
     if (!sheet) {
       throw new Error(`Sheet ${sheetName} not found.`);
     }
@@ -406,8 +406,8 @@ app.put('/api/timetable/:rowId', async (req, res) => {
     const sheets = getSheetsClient();
     const sheetName = 'TimeTable';
 
-    const rowNumber = parseInt(rowId) + 1;
-    if (isNaN(rowNumber) || rowNumber <= 1) {
+    const rowNumber = parseInt(rowId);
+    if (isNaN(rowNumber) || rowNumber < 1) {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
@@ -444,8 +444,8 @@ app.delete('/api/timetable/:rowId', async (req, res) => {
 
     // Parse list of row IDs to delete, convert to 1-based spreadsheet row numbers
     const rowNumbersToDelete = rowId.split(',')
-      .map(id => parseInt(id.trim()) + 1)
-      .filter(num => !isNaN(num) && num > 1);
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num >= 1);
 
     if (rowNumbersToDelete.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
@@ -456,7 +456,7 @@ app.delete('/api/timetable/:rowId', async (req, res) => {
       spreadsheetId: SPREADSHEET_ID,
     });
     const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
-    
+
     if (!sheet) {
       throw new Error(`Sheet ${sheetName} not found.`);
     }
@@ -561,9 +561,16 @@ app.post('/api/exam', async (req, res) => {
 
     const newRow = mapExamBodyToRow(entry).slice(1); // Exclude empty Column A from append search
 
-    await sheets.spreadsheets.values.append({
+    const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!B1`, // Use B1 (date column) for table boundary check
+      range: `${sheetName}!B1:B3000`,
+    });
+    const currentRows = currentData.data.values || [];
+    const nextRowNumber = currentRows.length + 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!B${nextRowNumber}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [newRow],
@@ -591,8 +598,8 @@ app.put('/api/exam/:rowId', async (req, res) => {
     const sheets = getSheetsClient();
     const sheetName = 'exam_schedule';
 
-    const rowNumber = parseInt(rowId) + 1;
-    if (isNaN(rowNumber) || rowNumber <= 1) {
+    const rowNumber = parseInt(rowId);
+    if (isNaN(rowNumber) || rowNumber < 1) {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
@@ -629,8 +636,8 @@ app.delete('/api/exam/:rowId', async (req, res) => {
 
     // Parse list of row IDs to delete, convert to 1-based spreadsheet row numbers
     const rowNumbersToDelete = rowId.split(',')
-      .map(id => parseInt(id.trim()) + 1)
-      .filter(num => !isNaN(num) && num > 1);
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num >= 1);
 
     if (rowNumbersToDelete.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
@@ -641,7 +648,7 @@ app.delete('/api/exam/:rowId', async (req, res) => {
       spreadsheetId: SPREADSHEET_ID,
     });
     const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
-    
+
     if (!sheet) {
       throw new Error(`Sheet ${sheetName} not found.`);
     }
@@ -718,12 +725,19 @@ app.post('/api/marks', async (req, res) => {
       newRows = [mapMarksBodyToRow(data)];
     }
 
-    await sheets.spreadsheets.values.append({
+    const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1`,
+      range: `${sheetName}!B1:B3000`,
+    });
+    const currentRows = currentData.data.values || [];
+    const nextRowNumber = currentRows.length + 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!B${nextRowNumber}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: newRows,
+        values: newRows.map(r => r.slice(1)), // Exclude empty Column A to append after last populated row in Column B (Date)
       },
     });
 
@@ -748,8 +762,8 @@ app.put('/api/marks/:rowId', async (req, res) => {
     const sheets = getSheetsClient();
     const sheetName = MARKS_SHEET_NAME;
 
-    const rowNumber = parseInt(rowId) + 1; // 1-based spreadsheet row
-    if (isNaN(rowNumber) || rowNumber <= 1) {
+    const rowNumber = parseInt(rowId); // id IS the 1-based spreadsheet row number
+    if (isNaN(rowNumber) || rowNumber < 1) {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
@@ -786,8 +800,8 @@ app.delete('/api/marks/:rowId', async (req, res) => {
 
     // Parse list of row IDs to delete, convert to 1-based spreadsheet row numbers
     const rowNumbersToDelete = rowId.split(',')
-      .map(id => parseInt(id.trim()) + 1)
-      .filter(num => !isNaN(num) && num > 1);
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num >= 1);
 
     if (rowNumbersToDelete.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
@@ -798,7 +812,7 @@ app.delete('/api/marks/:rowId', async (req, res) => {
       spreadsheetId: SPREADSHEET_ID,
     });
     const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
-    
+
     if (!sheet) {
       throw new Error(`Sheet ${sheetName} not found.`);
     }
@@ -866,9 +880,16 @@ app.post('/api/activeSession', async (req, res) => {
       newRows = [mapActiveSessionBodyToRow(data)];
     }
 
-    await sheets.spreadsheets.values.append({
+    const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!B1`,
+      range: `${sheetName}!B1:B3000`,
+    });
+    const currentRows = currentData.data.values || [];
+    const nextRowNumber = currentRows.length + 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!B${nextRowNumber}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: newRows,
@@ -897,8 +918,8 @@ app.put('/api/activeSession/:rowId', async (req, res) => {
     const sheetName = ACTIVE_SESSION_SHEET_NAME;
 
     const rowNumber = parseInt(rowId); // id IS the 1-based spreadsheet row number
-    if (isNaN(rowNumber) || rowNumber <= 1) {
-      return res.status(400).json({ success: false, message: 'Invalid row ID (must be > 1 to avoid header row).' });
+    if (isNaN(rowNumber) || rowNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
     const updatedRow = mapActiveSessionBodyToRow(entry);
@@ -935,7 +956,7 @@ app.delete('/api/activeSession/:rowId', async (req, res) => {
     // Parse list of row IDs to delete, convert to 1-based spreadsheet row numbers
     const rowNumbersToDelete = rowId.split(',')
       .map(id => parseInt(id.trim()))
-      .filter(num => !isNaN(num) && num > 1); // > 1 to never allow deleting the header row
+      .filter(num => !isNaN(num) && num >= 1);
 
     if (rowNumbersToDelete.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
@@ -946,7 +967,7 @@ app.delete('/api/activeSession/:rowId', async (req, res) => {
       spreadsheetId: SPREADSHEET_ID,
     });
     const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
-    
+
     if (!sheet) {
       throw new Error(`Sheet ${sheetName} not found.`);
     }
@@ -991,11 +1012,11 @@ console.log('Task sheet name:', TASK_SHEET_NAME);
 
 /** Map task body to a row array: [task, assignee_id, due_date, priority, status] */
 const mapTaskBodyToRow = (body) => [
-  String(body.name        || body.task   || '').trim(),
-  String(body.assigneeId  || body.assign || '').trim(),
-  String(body.dueDate     || body.due    || '').trim(),
-  String(body.priority    || 'Normal').trim(),
-  String(body.status      || 'Pending').trim(),
+  String(body.name || body.task || '').trim(),
+  String(body.assigneeId || body.assign || '').trim(),
+  String(body.dueDate || body.due || '').trim(),
+  String(body.priority || 'Normal').trim(),
+  String(body.status || 'Pending').trim(),
 ];
 
 // GET teachers list for assignee dropdown
@@ -1011,12 +1032,12 @@ app.get('/api/teachers-list', async (req, res) => {
 
     const headers = (rows[0] || []).map(h => String(h || '').toLowerCase().trim());
     // idIdx: prefer exact "id" column or "teacher_id" — avoid matching "name" columns
-    const idIdx   = headers.findIndex(h => h === 'id' || h === 'teacher_id' || (h.includes('id') && !h.includes('name')));
+    const idIdx = headers.findIndex(h => h === 'id' || h === 'teacher_id' || (h.includes('id') && !h.includes('name')));
     // nameIdx: look for 'name' keyword only — never 'teacher' which also appears in the ID column
     const nameIdx = headers.findIndex(h => h.includes('name'));
 
     const teachers = rows.slice(1).filter(r => r.length).map(row => ({
-      id:   idIdx   >= 0 ? String(row[idIdx]   || '').trim() : '',
+      id: idIdx >= 0 ? String(row[idIdx] || '').trim() : '',
       name: nameIdx >= 0 ? String(row[nameIdx] || '').trim() : '',
     })).filter(t => t.id);
 
@@ -1051,7 +1072,7 @@ app.put('/api/tasks/:rowId', async (req, res) => {
   try {
     const sheets = getSheetsClient();
     const rowNumber = parseInt(rowId);
-    if (isNaN(rowNumber) || rowNumber <= 1) {
+    if (isNaN(rowNumber) || rowNumber < 1) {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
     await sheets.spreadsheets.values.update({
@@ -1074,7 +1095,7 @@ app.delete('/api/tasks/:rowId', async (req, res) => {
     const sheets = getSheetsClient();
     const rowNumbersToDelete = rowId.split(',')
       .map(id => parseInt(id.trim()))
-      .filter(num => !isNaN(num) && num > 1);
+      .filter(num => !isNaN(num) && num >= 1);
 
     if (rowNumbersToDelete.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
@@ -1115,32 +1136,32 @@ console.log('Fees sheet name:', FEES_SHEET_NAME);
  * T=date4, U=detials4, V=ref4,  W=amount4
  */
 const mapFeesBodyToRow = (body) => [
-  String(body.studentId     || body.Student_ID    || body['Student ID']    || '').trim(),
-  String(body.name          || body.Name          || '').trim(),
+  String(body.studentId || body.Student_ID || body['Student ID'] || '').trim(),
+  String(body.name || body.Name || '').trim(),
   String(body.totalGrossFee || body['TOTAL GROSS FEE'] || body.total_gross_fee || '').trim(),
-  String(body.discount      || body.DISCOUNT      || '').trim(),
-  String(body.totalNetFee   || body['TOTAL NET FEE']   || body.total_net_fee   || '').trim(),
-  String(body.paidFee       || body['PAID FEE']   || body.paid_fee    || '').trim(),
-  String(body.pendingFee    || body['PENDING FEE']|| body.pending_fee || '').trim(),
+  String(body.discount || body.DISCOUNT || '').trim(),
+  String(body.totalNetFee || body['TOTAL NET FEE'] || body.total_net_fee || '').trim(),
+  String(body.paidFee || body['PAID FEE'] || body.paid_fee || '').trim(),
+  String(body.pendingFee || body['PENDING FEE'] || body.pending_fee || '').trim(),
   // Installment 1
-  String(body.date    || body.Date    || body.DATE    || '').trim(),
-  String(body.details1|| body.detials1|| body.DETIALS1|| '').trim(),
-  String(body.ref1    || body.REF1    || body.Ref1    || '').trim(),
+  String(body.date || body.Date || body.DATE || '').trim(),
+  String(body.details1 || body.detials1 || body.DETIALS1 || '').trim(),
+  String(body.ref1 || body.REF1 || body.Ref1 || '').trim(),
   String(body.amount1 || body.AMOUNT1 || body.Amount1 || '').trim(),
   // Installment 2
-  String(body.date2   || body.Date2   || body.DATE2   || '').trim(),
-  String(body.details2|| body.detials2|| body.DETIALS2|| '').trim(),
-  String(body.ref2    || body.REF2    || body.Ref2    || '').trim(),
+  String(body.date2 || body.Date2 || body.DATE2 || '').trim(),
+  String(body.details2 || body.detials2 || body.DETIALS2 || '').trim(),
+  String(body.ref2 || body.REF2 || body.Ref2 || '').trim(),
   String(body.amount2 || body.AMOUNT2 || body.Amount2 || '').trim(),
   // Installment 3
-  String(body.date3   || body.Date3   || body.DATE3   || '').trim(),
-  String(body.details3|| body.detials3|| body.DETIALS3|| '').trim(),
-  String(body.ref3    || body.REF3    || body.Ref3    || '').trim(),
+  String(body.date3 || body.Date3 || body.DATE3 || '').trim(),
+  String(body.details3 || body.detials3 || body.DETIALS3 || '').trim(),
+  String(body.ref3 || body.REF3 || body.Ref3 || '').trim(),
   String(body.amount3 || body.AMOUNT3 || body.Amount3 || '').trim(),
   // Installment 4
-  String(body.date4   || body.Date4   || body.DATE4   || '').trim(),
-  String(body.details4|| body.detials4|| body.DETIALS4|| '').trim(),
-  String(body.ref4    || body.REF4    || body.Ref4    || '').trim(),
+  String(body.date4 || body.Date4 || body.DATE4 || '').trim(),
+  String(body.details4 || body.detials4 || body.DETIALS4 || '').trim(),
+  String(body.ref4 || body.REF4 || body.Ref4 || '').trim(),
   String(body.amount4 || body.AMOUNT4 || body.Amount4 || '').trim(),
 ];
 
@@ -1175,8 +1196,8 @@ app.put('/api/fees/:rowId', async (req, res) => {
   try {
     const sheets = getSheetsClient();
     const rowNumber = parseInt(rowId); // id IS the 1-based spreadsheet row number
-    if (isNaN(rowNumber) || rowNumber <= 1) {
-      return res.status(400).json({ success: false, message: 'Invalid row ID (must be > 1 to avoid header row).' });
+    if (isNaN(rowNumber) || rowNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
     await sheets.spreadsheets.values.update({
@@ -1202,7 +1223,7 @@ app.delete('/api/fees/:rowId', async (req, res) => {
 
     const rowNumbersToDelete = rowId.split(',')
       .map(id => parseInt(id.trim()))
-      .filter(num => !isNaN(num) && num > 1); // > 1 to protect header row
+      .filter(num => !isNaN(num) && num >= 1); // > 1 to protect header row
 
     if (rowNumbersToDelete.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
@@ -1236,7 +1257,264 @@ app.delete('/api/fees/:rowId', async (req, res) => {
   }
 });
 
+// ================= TEACHERS CRUD ENDPOINTS =================
+
+// Helper to map teacher body to row
+const mapTeacherBodyToRow = (body) => [
+  String(body.teacherId || '').trim(),
+  String(body.name || body.teacherName || '').trim(),
+  String(body.subject || '').trim(),
+  String(body.phone || body.phoneNumber || '').trim(),
+  String(body.email || '').trim(),
+  String(body.joiningDate || '').trim(),
+];
+
+// 1. CREATE Teacher Record
+app.post('/api/teachers', async (req, res) => {
+  console.log('POST /api/teachers - Body:', req.body);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = TEACHER_SHEET_NAME;
+
+    // Get current rows
+    const currentData = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1:Z1000`,
+    });
+    const currentRows = currentData.data.values || [];
+
+    let teacherId = req.body.teacherId ? String(req.body.teacherId).trim() : '';
+    if (!teacherId) {
+      // Find max numeric part from existing IDs (e.g. FT1004 -> 1004)
+      let maxIdNum = 1000;
+      if (currentRows.length > 1) {
+        currentRows.slice(1).forEach(row => {
+          const idStr = String(row[0] || '').trim();
+          const numPart = parseInt(idStr.replace(/^FT/i, ''));
+          if (!isNaN(numPart) && numPart > maxIdNum) {
+            maxIdNum = numPart;
+          }
+        });
+      }
+      teacherId = `FT${maxIdNum + 1}`;
+    }
+
+    const body = { ...req.body, teacherId };
+    const newRow = mapTeacherBodyToRow(body);
+    const nextRowNumber = currentRows.length + 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A${nextRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [newRow],
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'Teacher Record Added Successfully', teacherId, id: nextRowNumber });
+  } catch (error) {
+    console.error('Error adding teacher record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to save teacher record.' });
+  }
+});
+
+// 2. UPDATE Teacher Record
+app.put('/api/teachers/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`PUT /api/teachers/${rowId} - Body:`, req.body);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = TEACHER_SHEET_NAME;
+    const rowNumber = parseInt(rowId);
+
+    if (isNaN(rowNumber) || rowNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID.' });
+    }
+
+    const updatedRow = mapTeacherBodyToRow(req.body);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [updatedRow],
+      },
+    });
+
+    res.json({ success: true, message: 'Teacher Record Updated Successfully' });
+  } catch (error) {
+    console.error('Error updating teacher record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update teacher record.' });
+  }
+});
+
+// 3. DELETE Teacher Record(s)
+app.delete('/api/teachers/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`DELETE /api/teachers/${rowId}`);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = TEACHER_SHEET_NAME;
+
+    const rowNumbersToDelete = rowId.split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num >= 2); // protect header row
+
+    if (rowNumbersToDelete.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
+    }
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+    if (!sheet) throw new Error(`Sheet ${sheetName} not found.`);
+    const sheetId = sheet.properties.sheetId;
+
+    rowNumbersToDelete.sort((a, b) => b - a);
+
+    const requests = rowNumbersToDelete.map(rowNum => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rowNum - 1,
+          endIndex: rowNum,
+        },
+      },
+    }));
+
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+
+    res.json({ success: true, message: 'Teacher Record Deleted Successfully' });
+  } catch (error) {
+    console.error('Error deleting teacher record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to delete teacher record.' });
+  }
+});
+
+// ================= NEW STUDENT INQUIRY CRUD ENDPOINTS =================
+
+const INQUIRY_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_NEW_STUDENT_INQUIRY || 'new inquiry';
+
+// Helper to map inquiry body to row
+const mapInquiryBodyToRow = (body) => [
+  String(body.name || body.studentName || '').trim(),
+  String(body.board || '').trim(),
+  String(body.medium || '').trim(),
+  String(body.standard || '').trim(),
+  String(body.group || '').trim(),
+  String(body.phone || body.phoneNumber || '').trim(),
+];
+
+// 1. CREATE Inquiry Record
+app.post('/api/inquiry', async (req, res) => {
+  console.log('POST /api/inquiry - Body:', req.body);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = INQUIRY_SHEET_NAME;
+
+    const currentData = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1:Z2000`,
+    });
+    const currentRows = currentData.data.values || [];
+    const nextRowNumber = currentRows.length + 1;
+
+    const newRow = mapInquiryBodyToRow(req.body);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A${nextRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [newRow],
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'Inquiry Record Added Successfully', id: nextRowNumber });
+  } catch (error) {
+    console.error('Error adding inquiry record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to save inquiry record.' });
+  }
+});
+
+// 2. UPDATE Inquiry Record
+app.put('/api/inquiry/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`PUT /api/inquiry/${rowId} - Body:`, req.body);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = INQUIRY_SHEET_NAME;
+    const rowNumber = parseInt(rowId);
+
+    if (isNaN(rowNumber) || rowNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID.' });
+    }
+
+    const updatedRow = mapInquiryBodyToRow(req.body);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [updatedRow],
+      },
+    });
+
+    res.json({ success: true, message: 'Inquiry Record Updated Successfully' });
+  } catch (error) {
+    console.error('Error updating inquiry record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update inquiry record.' });
+  }
+});
+
+// 3. DELETE Inquiry Record(s)
+app.delete('/api/inquiry/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`DELETE /api/inquiry/${rowId}`);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = INQUIRY_SHEET_NAME;
+
+    const rowNumbersToDelete = rowId.split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num >= 2); // protect header row
+
+    if (rowNumbersToDelete.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
+    }
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+    if (!sheet) throw new Error(`Sheet ${sheetName} not found.`);
+    const sheetId = sheet.properties.sheetId;
+
+    rowNumbersToDelete.sort((a, b) => b - a);
+
+    const requests = rowNumbersToDelete.map(rowNum => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rowNum - 1,
+          endIndex: rowNum,
+        },
+      },
+    }));
+
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+
+    res.json({ success: true, message: 'Inquiry Record Deleted Successfully' });
+  } catch (error) {
+    console.error('Error deleting inquiry record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to delete inquiry record.' });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
 });
+

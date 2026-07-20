@@ -21,6 +21,10 @@ import { addActiveSessionEntry, updateActiveSessionEntry, deleteActiveSessionEnt
 import ActiveSessionModals from './components/activeSession/ActiveSessionModals';
 import { addFeesEntry, updateFeesEntry, deleteFeesEntries } from './services/feesService';
 import FeesModals from './components/fees/FeesModals';
+import { addTeacher, updateTeacher, deleteTeachers } from './services/teachersService';
+import TeachersModals from './components/teachers/TeachersModals';
+import { addInquiry, updateInquiry, deleteInquiries } from './services/inquiryService';
+import InquiryModals from './components/inquiry/InquiryModals';
 
 function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -43,6 +47,10 @@ function AppContent() {
   const [activeSessionModalMode, setActiveSessionModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
   const [feesModalOpen, setFeesModalOpen] = useState(false);
   const [feesModalMode, setFeesModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
+  const [teachersModalOpen, setTeachersModalOpen] = useState(false);
+  const [teachersModalMode, setTeachersModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
+  const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
+  const [inquiryModalMode, setInquiryModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
   const [crudLoading, setCrudLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -253,6 +261,64 @@ function AppContent() {
     }
   };
 
+  const handleSaveTeacher = async (formData) => {
+    setCrudLoading(true);
+    try {
+      if (teachersModalMode === 'add') {
+        await addTeacher(formData);
+        setToast({ message: 'Teacher Added Successfully', type: 'success' });
+      } else if (teachersModalMode === 'edit') {
+        const rowId = selectedRows[0]?.id;
+        await updateTeacher(rowId, formData);
+        setToast({ message: 'Teacher Updated Successfully', type: 'success' });
+      } else if (teachersModalMode === 'delete') {
+        const rowIds = selectedRows.map(r => r.id);
+        await deleteTeachers(rowIds);
+        setToast({ message: 'Teacher Deleted Successfully', type: 'success' });
+      }
+      clearSheetCache();
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedRows([]);
+      setTeachersModalOpen(false);
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.message || 'Unable to save changes. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  const handleSaveInquiry = async (formData) => {
+    setCrudLoading(true);
+    try {
+      if (inquiryModalMode === 'add') {
+        await addInquiry(formData);
+        setToast({ message: 'Inquiry Added Successfully', type: 'success' });
+      } else if (inquiryModalMode === 'edit') {
+        const rowId = selectedRows[0]?.id;
+        await updateInquiry(rowId, formData);
+        setToast({ message: 'Inquiry Updated Successfully', type: 'success' });
+      } else if (inquiryModalMode === 'delete') {
+        const rowIds = selectedRows.map(r => r.id);
+        await deleteInquiries(rowIds);
+        setToast({ message: 'Inquiry Deleted Successfully', type: 'success' });
+      }
+      clearSheetCache();
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedRows([]);
+      setInquiryModalOpen(false);
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.message || 'Unable to save changes. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
   const getRowStudentId = (row) => {
     if (!row) return '';
     const keys = Object.keys(row);
@@ -269,6 +335,62 @@ function AppContent() {
   });
   
   const existingStudentIds = data?.allStudents?.map(s => s.studentId) || [];
+
+  const handleEditTrigger = () => {
+    if (activePage === 'students') {
+      setModalMode('edit');
+      setModalOpen(true);
+    } else if (activePage === 'exam') {
+      setExamModalMode('edit');
+      setExamModalOpen(true);
+    } else if (activePage === 'marks') {
+      setMarksModalMode('edit');
+      setMarksModalOpen(true);
+    } else if (activePage === 'activeSession') {
+      setActiveSessionModalMode('edit');
+      setActiveSessionModalOpen(true);
+    } else if (activePage === 'fees') {
+      setFeesModalMode('edit');
+      setFeesModalOpen(true);
+    } else if (activePage === 'teachers') {
+      setTeachersModalMode('edit');
+      setTeachersModalOpen(true);
+    } else if (activePage === 'newStudentInquiry') {
+      setInquiryModalMode('edit');
+      setInquiryModalOpen(true);
+    } else {
+      setTtModalMode('edit');
+      setTtModalOpen(true);
+    }
+  };
+
+  const handleDeleteTrigger = () => {
+    if (activePage === 'students') {
+      setModalMode('delete');
+      setModalOpen(true);
+    } else if (activePage === 'exam') {
+      setExamModalMode('delete');
+      setExamModalOpen(true);
+    } else if (activePage === 'marks') {
+      setMarksModalMode('delete');
+      setMarksModalOpen(true);
+    } else if (activePage === 'activeSession') {
+      setActiveSessionModalMode('delete');
+      setActiveSessionModalOpen(true);
+    } else if (activePage === 'fees') {
+      setFeesModalMode('delete');
+      setFeesModalOpen(true);
+    } else if (activePage === 'teachers') {
+      setTeachersModalMode('delete');
+      setTeachersModalOpen(true);
+    } else if (activePage === 'newStudentInquiry') {
+      setInquiryModalMode('delete');
+      setInquiryModalOpen(true);
+    } else {
+      setTtModalMode('delete');
+      setTtModalOpen(true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -308,53 +430,19 @@ function AppContent() {
             } else if (activePage === 'fees') {
               setFeesModalMode('add');
               setFeesModalOpen(true);
+            } else if (activePage === 'teachers') {
+              setTeachersModalMode('add');
+              setTeachersModalOpen(true);
+            } else if (activePage === 'newStudentInquiry') {
+              setInquiryModalMode('add');
+              setInquiryModalOpen(true);
             } else {
               setTtModalMode('add');
               setTtModalOpen(true);
             }
           }}
-          onEditClick={() => {
-            if (activePage === 'students') {
-              setModalMode('edit');
-              setModalOpen(true);
-            } else if (activePage === 'exam') {
-              setExamModalMode('edit');
-              setExamModalOpen(true);
-            } else if (activePage === 'marks') {
-              setMarksModalMode('edit');
-              setMarksModalOpen(true);
-            } else if (activePage === 'activeSession') {
-              setActiveSessionModalMode('edit');
-              setActiveSessionModalOpen(true);
-            } else if (activePage === 'fees') {
-              setFeesModalMode('edit');
-              setFeesModalOpen(true);
-            } else {
-              setTtModalMode('edit');
-              setTtModalOpen(true);
-            }
-          }}
-          onDeleteClick={() => {
-            if (activePage === 'students') {
-              setModalMode('delete');
-              setModalOpen(true);
-            } else if (activePage === 'exam') {
-              setExamModalMode('delete');
-              setExamModalOpen(true);
-            } else if (activePage === 'marks') {
-              setMarksModalMode('delete');
-              setMarksModalOpen(true);
-            } else if (activePage === 'activeSession') {
-              setActiveSessionModalMode('delete');
-              setActiveSessionModalOpen(true);
-            } else if (activePage === 'fees') {
-              setFeesModalMode('delete');
-              setFeesModalOpen(true);
-            } else {
-              setTtModalMode('delete');
-              setTtModalOpen(true);
-            }
-          }}
+          onEditClick={handleEditTrigger}
+          onDeleteClick={handleDeleteTrigger}
           crudLoading={crudLoading}
         />
 
@@ -432,6 +520,55 @@ function AppContent() {
         onSave={handleSaveFees}
         loading={crudLoading}
       />
+
+      <TeachersModals
+        isOpen={teachersModalOpen}
+        mode={teachersModalMode}
+        teacherData={selectedRows[0]}
+        selectedRows={selectedRows}
+        existingTeacherIds={data?.teachers?.map(t => String(t.teacher_id || t.teacherId || '').trim()).filter(Boolean) || []}
+        onClose={() => setTeachersModalOpen(false)}
+        onSave={handleSaveTeacher}
+        loading={crudLoading}
+      />
+
+      <InquiryModals
+        isOpen={inquiryModalOpen}
+        mode={inquiryModalMode}
+        inquiryData={selectedRows[0]}
+        selectedRows={selectedRows}
+        onClose={() => setInquiryModalOpen(false)}
+        onSave={handleSaveInquiry}
+        loading={crudLoading}
+      />
+
+      {/* Floating CRUD Selection Action Bar when rows are checked */}
+      {selectedRowKeys.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-4 rounded-full border border-slate-200 bg-white/90 px-6 py-3.5 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+            {selectedRowKeys.length} {selectedRowKeys.length === 1 ? 'row' : 'rows'} selected
+          </span>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-850" />
+          <div className="flex gap-2">
+            {selectedRowKeys.length === 1 && (
+              <button
+                type="button"
+                onClick={handleEditTrigger}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shadow-sm active:scale-95 transition"
+              >
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleDeleteTrigger}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-rose-500 shadow-sm active:scale-95 transition"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <Toast

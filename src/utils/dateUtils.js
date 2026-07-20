@@ -48,10 +48,9 @@ export const formatDateToDDMMYYYY = (input) => {
     }
 
     // Case C: Both p1 <= 12 and p2 <= 12
-    // In Google Sheets, dates stored as "06-12-2026" or "06-08-2026" have month (06 = June) in position p1, and day in position p2.
-    // Format to DD-MM-YYYY -> Day (p2) first, Month (p1) second.
-    const month = String(p1).padStart(2, '0');
-    const day = String(p2).padStart(2, '0');
+    // Keep the order exactly as in the sheet (p1 is Day, p2 is Month)
+    const day = String(p1).padStart(2, '0');
+    const month = String(p2).padStart(2, '0');
     return `${day}-${month}-${year}`;
   }
 

@@ -11,7 +11,7 @@ const GOOGLE_SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
  */
 export const convertSheetRowsToObjects = (rows) => {
   if (!rows || rows.length === 0) return [];
-  
+
   let headers = rows[0];
   let startIndex = 1;
 
@@ -118,7 +118,7 @@ export const fetchGoogleSheetData = async (range) => {
       }
 
       const url = `${GOOGLE_SHEETS_API_URL}/${googleSheetsConfig.sheetId}/values/${encodeURIComponent(formattedRange)}?key=${googleSheetsConfig.apiKey}`;
-      
+
       console.log('Google Sheets API Request:', {
         range: formattedRange,
         sheetId: googleSheetsConfig.sheetId,
@@ -171,7 +171,7 @@ export const fetchLiveAttendanceData = async (sheetName) => {
   try {
     // Use provided sheet name or default to first available sheet
     const attendanceSheetName = sheetName || googleSheetsConfig.attendanceSheets[0];
-    
+
     if (!attendanceSheetName) {
       throw new Error('No attendance sheet configured');
     }
@@ -217,7 +217,7 @@ export const processAttendanceRows = (rows) => {
   // Parse headers to identify columns
   headers.forEach((header, idx) => {
     const headerStr = String(header || '').toLowerCase().trim();
-    
+
     if (headerStr.includes('timestamp')) {
       timestampIdx = idx;
     } else if (headerStr.includes('lecture time') || headerStr.includes('lecture')) {
@@ -259,7 +259,7 @@ export const processAttendanceRows = (rows) => {
     studentColumns.forEach((student) => {
       const status = row[student.columnIndex] || '';
       const isPresent = String(status).toLowerCase().trim() === 'present';
-      
+
       attendanceRecord.attendanceByStudent.push({
         studentId: student.studentId,
         studentName: student.studentName,
