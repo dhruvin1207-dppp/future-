@@ -15,7 +15,17 @@ export const tableSections = [
 export const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
   { id: 'studentDashboard', label: 'Student Dashboard', icon: 'users' },
-  ...tableSections,
+  { id: 'students', label: 'Students', icon: 'users' },
+  { id: 'attendance', label: 'Attendance', icon: 'check' },
+  { id: 'dayByDayAttendance', label: 'Day by day attendance', icon: 'check' },
+  { id: 'marks', label: 'Marks', icon: 'marks' },
+  { id: 'timetable', label: 'Timetable', icon: 'calendar' },
+  { id: 'teachers', label: 'Teachers', icon: 'teacher' },
+  { id: 'newStudentInquiry', label: 'New Student Inquiry', icon: 'inquiry' },
+  { id: 'exam', label: 'Exam', icon: 'exam' },
+  { id: 'tasks', label: 'Tasks', icon: 'tasks' },
+  { id: 'activeSession', label: 'Active Session', icon: 'session' },
+  { id: 'fees', label: 'Fees', icon: 'fees' },
 ];
 
 export const pageTitles = {
@@ -23,6 +33,7 @@ export const pageTitles = {
   studentDashboard: { title: 'Student Dashboard', subtitle: 'Student Performance & Analytics' },
   students: { title: 'Students', subtitle: 'Student records' },
   attendance: { title: 'Attendance', subtitle: 'Class attendance (e.g. class 11G)' },
+  dayByDayAttendance: { title: 'Day by day attendance', subtitle: 'Full day-by-day attendance sheet records' },
   marks: { title: 'Marks', subtitle: 'Exam marks by student' },
   timetable: { title: 'Timetable', subtitle: 'Class timetable' },
   teachers: { title: 'Teachers', subtitle: 'Faculty records' },

@@ -1,16 +1,22 @@
-export default function StudentIdFilter({ label, value, onChange, studentIds = [], students = [] }) {
+export default function StudentIdFilter({ label, value, onChange, studentIds = [], students = [], layout = 'horizontal' }) {
   // Build options from `students` if provided (shows "ID - Name"), otherwise fallback to `studentIds`.
   const options = (students && students.length)
     ? students.map((s) => ({ id: s.studentId, name: s.name }))
     : (studentIds || []).map((id) => ({ id, name: null }));
 
+  const isVertical = layout === 'vertical';
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={isVertical ? "flex flex-col gap-1.5 w-full" : "flex flex-wrap items-center gap-2"}>
       <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        className={
+          isVertical
+            ? "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-850 dark:text-white"
+            : "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        }
       >
         <option value="">All Students</option>
         {options.map(({ id, name }) => (

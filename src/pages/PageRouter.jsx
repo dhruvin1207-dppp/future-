@@ -2,6 +2,7 @@ import DashboardPage from './DashboardPage';
 import StudentDashboardPage from './StudentDashboardPage';
 import SectionTablePage from './SectionTablePage';
 import TaskManagementPage from './TaskManagementPage';
+import DayByDayAttendancePage from './DayByDayAttendancePage';
 import { pageTitles, tableSections } from '../config/navigation';
 
 const sectionIds = new Set(tableSections.map((s) => s.id));
@@ -23,6 +24,10 @@ export default function PageRouter({
 
   if (activePage === 'tasks') {
     return <TaskManagementPage />;
+  }
+
+  if (activePage === 'dayByDayAttendance') {
+    return <DayByDayAttendancePage />;
   }
 
   if (sectionIds.has(activePage)) {
