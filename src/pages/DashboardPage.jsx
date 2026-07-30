@@ -35,7 +35,7 @@ const StatIcons = {
   ),
 };
 
-export default function DashboardPage({ data }) {
+export default function DashboardPage({ data, onNavigate }) {
   const { stats } = data;
   const { stats: taskStats } = useLiveTaskData();
 
@@ -54,24 +54,28 @@ export default function DashboardPage({ data }) {
           value={stats.totalStudents} 
           icon={StatIcons.students} 
           accent="blue" 
+          onClick={() => onNavigate('studentDashboard')}
         />
         <StatCard 
           title="Teachers" 
           value={stats.totalTeachers} 
           icon={StatIcons.teachers} 
           accent="green" 
+          onClick={() => onNavigate('teachers')}
         />
         <StatCard 
           title="New Inquiries" 
           value={stats.newInquiries} 
           icon={StatIcons.inquiry} 
           accent="purple" 
+          onClick={() => onNavigate('newStudentInquiry')}
         />
         <StatCard 
           title="Total Tasks" 
           value={taskStats?.total || 0} 
           icon={taskIcon} 
           accent="indigo" 
+          onClick={() => onNavigate('tasks')}
         />
       </div>
 

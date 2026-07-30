@@ -457,6 +457,7 @@ function AppContent() {
           ) : (
             <PageRouter
               activePage={activePage}
+              onNavigate={handleNavigate}
               dashboardData={data}
               selectedRows={selectedRows}
               setSelectedRows={setSelectedRows}

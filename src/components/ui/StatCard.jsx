@@ -7,7 +7,7 @@ const colorMap = {
   indigo: 'from-indigo-500/10 to-indigo-600/5 text-indigo-600 border-indigo-200/60',
 };
 
-export default function StatCard({ title, value, icon, accent = 'blue', format }) {
+export default function StatCard({ title, value, icon, accent = 'blue', format, onClick }) {
   const display =
     typeof value !== 'number' && isNaN(Number(value))
       ? value
@@ -17,7 +17,10 @@ export default function StatCard({ title, value, icon, accent = 'blue', format }
 
   return (
     <div
-      className={`rounded-xl border bg-gradient-to-br p-3.5 sm:p-5 shadow-card transition hover:shadow-md dark:shadow-card-dark ${colorMap[accent]}`}
+      onClick={onClick}
+      className={`rounded-xl border bg-gradient-to-br p-3.5 sm:p-5 shadow-card transition hover:shadow-md dark:shadow-card-dark ${colorMap[accent]} ${
+        onClick ? 'cursor-pointer' : ''
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">

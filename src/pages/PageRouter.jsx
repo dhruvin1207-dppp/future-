@@ -9,13 +9,14 @@ const sectionIds = new Set(tableSections.map((s) => s.id));
 
 export default function PageRouter({
   activePage,
+  onNavigate,
   dashboardData,
   selectedRows = [],
   setSelectedRows = null,
   refreshTrigger = 0,
 }) {
   if (activePage === 'dashboard') {
-    return <DashboardPage data={dashboardData} />;
+    return <DashboardPage data={dashboardData} onNavigate={onNavigate} />;
   }
 
   if (activePage === 'studentDashboard') {
