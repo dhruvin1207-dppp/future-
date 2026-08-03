@@ -18,6 +18,21 @@ export default function TaskManagementPage() {
   const [modalMode, setModalMode]       = useState('add');
   const [crudLoading, setCrudLoading]   = useState(false);
   const [toast, setToast]               = useState(null);
+  const [activeFilter, setActiveFilter] = useState('Total Tasks');
+
+  // Filter tasks based on selected stats card
+  const filteredTasks = tasks.filter(task => {
+    if (activeFilter === 'Completed') {
+      return task.status.includes('completed') || task.status.includes('done');
+    }
+    if (activeFilter === 'Pending') {
+      return !task.status.includes('completed') && !task.status.includes('done') && !task.status.includes('progress');
+    }
+    if (activeFilter === 'High Priority') {
+      return task.priority.includes('high') || task.priority.includes('urgent');
+    }
+    return true;
+  });
 
   const openAdd    = () => { setSelectedTask(null); setModalMode('add');    setModalOpen(true); };
   const openEdit   = (task) => { setSelectedTask(task); setModalMode('edit');   setModalOpen(true); };
@@ -82,7 +97,12 @@ export default function TaskManagementPage() {
       {/* Stats */}
       <div>
         <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Task Overview</h2>
-        <TaskStats stats={stats} />
+        <TaskStats
+          stats={stats}
+          exclude={['In Progress', 'Overdue']}
+          activeFilter={activeFilter}
+          onCardClick={setActiveFilter}
+        />
       </div>
 
       {/* Task List */}
@@ -90,9 +110,11 @@ export default function TaskManagementPage() {
         <div className="border-b border-slate-100 px-4 py-4 sm:px-6 dark:border-slate-800">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white sm:text-lg">All Tasks</h3>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white sm:text-lg">
+                {activeFilter === 'Total Tasks' ? 'All Tasks' : `${activeFilter} Tasks`}
+              </h3>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-                🔴 Live · {tasks.length} tasks
+                🔴 Live · {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -116,7 +138,7 @@ export default function TaskManagementPage() {
         </div>
 
         <div className="px-4 py-4 sm:px-6">
-          <TaskTable tasks={tasks} onEdit={openEdit} onDelete={openDelete} />
+          <TaskTable tasks={filteredTasks} onEdit={openEdit} onDelete={openDelete} />
         </div>
       </div>
 

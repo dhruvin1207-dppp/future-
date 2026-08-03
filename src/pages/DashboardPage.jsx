@@ -89,7 +89,7 @@ export default function DashboardPage({ data, onNavigate }) {
         </div>
         <div className="p-4 sm:p-6">
           {taskStats ? (
-            <TaskStats stats={taskStats} />
+            <TaskStats stats={taskStats} exclude={['In Progress', 'Overdue']} />
           ) : (
             <p className="text-center text-sm text-slate-500 dark:text-slate-400">
               No task data available. Configure task sheet in settings.
