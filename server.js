@@ -1008,6 +1008,7 @@ app.delete('/api/activeSession/:rowId', async (req, res) => {
 
 const TASK_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_TASK_SHEET || 'task_management';
 const TEACHER_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_TEACHERS || 'teacher_info';
+const RECEPTION_SHEET_NAME = 'Reception';
 console.log('Task sheet name:', TASK_SHEET_NAME);
 
 /** Map task body to a row array: [task, assignee_id, due_date, priority, status] */
@@ -1045,6 +1046,45 @@ app.get('/api/teachers-list', async (req, res) => {
   } catch (error) {
     console.error('Error fetching teachers list:', error);
     res.status(500).json({ success: false, teachers: [], message: error.message });
+  }
+});
+
+// GET reception list for assignee dropdown
+app.get('/api/reception-list', async (req, res) => {
+  try {
+    const sheets = getSheetsClient();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${RECEPTION_SHEET_NAME}!A1:Z500`,
+    });
+    const rows = result.data.values || [];
+    if (rows.length < 2) return res.json({ success: true, receptionists: [] });
+
+    const headers = (rows[0] || []).map(h => String(h || '').toLowerCase().trim());
+    const idIdx = headers.findIndex(h => h === 'id' || h === 'reception_id' || (h.includes('id') && !h.includes('name')));
+    const nameIdx = headers.findIndex(h => h.includes('name'));
+    const phoneIdx = headers.findIndex(h => h === 'number' || h.includes('phone'));
+
+    const receptionists = rows.slice(1).filter(r => r.length).map(row => {
+      const id = idIdx >= 0 ? String(row[idIdx] || '').trim() : '';
+      let name = nameIdx >= 0 ? String(row[nameIdx] || '').trim() : '';
+      
+      // Fallback: check if column A has content even if A1 header is empty
+      if (!name && row[0] && headers[0] === '') {
+        name = String(row[0] || '').trim();
+      }
+      
+      const phone = phoneIdx >= 0 ? String(row[phoneIdx] || '').trim() : '';
+      return {
+        id: id || phone,
+        name: name || `Receptionist ${id || phone || ''}`.trim(),
+      };
+    }).filter(r => r.id);
+
+    res.json({ success: true, receptionists });
+  } catch (error) {
+    console.error('Error fetching reception list:', error);
+    res.status(500).json({ success: false, receptionists: [], message: error.message });
   }
 });
 

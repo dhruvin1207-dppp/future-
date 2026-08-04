@@ -15,7 +15,8 @@ const STATUS_OPTIONS   = ['Pending', 'In Progress', 'Completed', 'On Hold'];
 export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, loading }) {
   const [formData, setFormData]   = useState(EMPTY_FORM);
   const [teachers, setTeachers]   = useState([]);
-  const [teachersLoading, setTeachersLoading] = useState(false);
+  const [receptionists, setReceptionists] = useState([]);
+  const [assigneesLoading, setAssigneesLoading] = useState(false);
   const [errors, setErrors]       = useState({});
 
   // Populate form when editing
@@ -35,14 +36,24 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
     }
   }, [isOpen, mode, taskData]);
 
-  // Load teachers list for assignee dropdown
+  // Load teachers and receptionists list for assignee dropdown
   useEffect(() => {
     if (!isOpen || mode === 'delete') return;
-    setTeachersLoading(true);
-    api.get('/api/teachers-list')
-      .then(res => setTeachers(res.data.teachers || []))
-      .catch(() => setTeachers([]))
-      .finally(() => setTeachersLoading(false));
+    setAssigneesLoading(true);
+    Promise.all([
+      api.get('/api/teachers-list').catch(() => ({ data: { teachers: [] } })),
+      api.get('/api/reception-list').catch(() => ({ data: { receptionists: [] } })),
+    ])
+      .then(([teachersRes, receptionRes]) => {
+        setTeachers(teachersRes.data.teachers || []);
+        setReceptionists(receptionRes.data.receptionists || []);
+      })
+      .catch((err) => {
+        console.error('Error fetching assignees list:', err);
+        setTeachers([]);
+        setReceptionists([]);
+      })
+      .finally(() => setAssigneesLoading(false));
   }, [isOpen, mode]);
 
   // Escape to close
@@ -140,26 +151,41 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
             {errors.name && <p className="mt-1 text-xs text-rose-500">{errors.name}</p>}
           </div>
 
-          {/* Assignee — teacher dropdown */}
+          {/* Assignee — teacher/reception dropdown */}
           <div>
             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Assign To (Teacher)
-              {teachersLoading && <span className="ml-2 text-brand-blue">Loading…</span>}
+              Assign To (Teacher / Reception)
+              {assigneesLoading && <span className="ml-2 text-brand-blue text-[10px] animate-pulse">Loading…</span>}
             </label>
             <select
-              name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={loading || teachersLoading}
+              name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={loading || assigneesLoading}
               className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
-              <option value="">— Select Teacher —</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.id}{t.name ? ` — ${t.name}` : ''}
-                </option>
-              ))}
-              {/* Keep existing value if not in list */}
-              {formData.assigneeId && !teachers.find(t => t.id === formData.assigneeId) && (
-                <option value={formData.assigneeId}>{formData.assigneeId} (current)</option>
+              <option value="">— Select Assignee —</option>
+              {teachers.length > 0 && (
+                <optgroup label="Teachers" className="font-semibold text-slate-700 dark:text-slate-300">
+                  {teachers.map(t => (
+                    <option key={t.id} value={t.id} className="font-normal">
+                      {t.id}{t.name ? ` — ${t.name}` : ''}
+                    </option>
+                  ))}
+                </optgroup>
               )}
+              {receptionists.length > 0 && (
+                <optgroup label="Reception" className="font-semibold text-slate-700 dark:text-slate-300">
+                  {receptionists.map(r => (
+                    <option key={r.id} value={r.id} className="font-normal">
+                      {r.id}{r.name ? ` — ${r.name}` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {/* Keep existing value if not in list */}
+              {formData.assigneeId &&
+                !teachers.find(t => t.id === formData.assigneeId) &&
+                !receptionists.find(r => r.id === formData.assigneeId) && (
+                  <option value={formData.assigneeId}>{formData.assigneeId} (current)</option>
+                )}
             </select>
           </div>
 
