@@ -48,12 +48,41 @@ export default function DayByDayAttendancePage() {
       });
     });
 
+    const parseDateString = (dateStr) => {
+      if (!dateStr) return new Date(0);
+      const str = String(dateStr).trim();
+      const normalized = str.replace(/\//g, '-');
+      const parts = normalized.split('-');
+      if (parts.length === 3) {
+        let day, month, year;
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          day = parseInt(parts[2], 10);
+        } else {
+          // DD-MM-YYYY
+          day = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          year = parseInt(parts[2], 10);
+          if (year < 100) {
+            year += 2000;
+          }
+        }
+        const d = new Date(year, month, day);
+        if (!isNaN(d.getTime())) {
+          return d;
+        }
+      }
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? new Date(0) : d;
+    };
+
     // Sort descending by date/time (latest first)
     return list.sort((a, b) => {
-      // Try to parse dates, fallback to ID sorting
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      if (!isNaN(dateA) && !isNaN(dateB)) {
+      const dateA = parseDateString(a.date);
+      const dateB = parseDateString(b.date);
+      if (dateA.getTime() !== dateB.getTime()) {
         return dateB - dateA;
       }
       return b.id - a.id;
