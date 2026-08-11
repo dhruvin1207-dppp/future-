@@ -14,6 +14,7 @@ export const googleSheetsConfig = {
     exam: import.meta.env.VITE_GOOGLE_SHEETS_SHEET_EXAM || 'exam_schedule',
     activeSession: import.meta.env.VITE_GOOGLE_SHEETS_SHEET_ACTIVE_SESSION || 'act_session',
     fees: import.meta.env.VITE_GOOGLE_SHEETS_SHEET_FEES || 'fees_info',
+    reception: import.meta.env.VITE_GOOGLE_SHEETS_SHEET_RECEPTION || 'Reception',
   },
   refreshInterval: Number(import.meta.env.VITE_GOOGLE_SHEETS_REFRESH_INTERVAL) || 5000,
 };

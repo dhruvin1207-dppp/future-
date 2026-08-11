@@ -10,6 +10,7 @@ export const tableSections = [
   { id: 'tasks', label: 'Tasks', icon: 'tasks' },
   { id: 'activeSession', label: 'Active Session', icon: 'session' },
   { id: 'fees', label: 'Fees', icon: 'fees' },
+  { id: 'reception', label: 'Reception', icon: 'session' },
 ];
 
 export const menuItems = [
@@ -26,6 +27,7 @@ export const menuItems = [
   { id: 'tasks', label: 'Tasks', icon: 'tasks' },
   { id: 'activeSession', label: 'Active Session', icon: 'session' },
   { id: 'fees', label: 'Fees', icon: 'fees' },
+  { id: 'reception', label: 'Reception', icon: 'session' },
 ];
 
 export const pageTitles = {
@@ -42,4 +44,5 @@ export const pageTitles = {
   tasks: { title: 'Tasks', subtitle: 'Task management and tracking' },
   activeSession: { title: 'Active Session', subtitle: 'Active user login roles & sessions' },
   fees: { title: 'Fees', subtitle: 'Student fee records & payment tracking' },
+  reception: { title: 'Reception', subtitle: 'Receptionist call and visitor logs' },
 };

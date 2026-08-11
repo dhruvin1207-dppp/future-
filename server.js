@@ -1008,7 +1008,7 @@ app.delete('/api/activeSession/:rowId', async (req, res) => {
 
 const TASK_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_TASK_SHEET || 'task_management';
 const TEACHER_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_TEACHERS || 'teacher_info';
-const RECEPTION_SHEET_NAME = 'Reception';
+const RECEPTION_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_RECEPTION || 'Reception';
 console.log('Task sheet name:', TASK_SHEET_NAME);
 
 /** Map task body to a row array: [task, assignee_id, due_date, priority, status] */
@@ -1166,53 +1166,65 @@ app.delete('/api/tasks/:rowId', async (req, res) => {
 const FEES_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_FEES || 'fees_info';
 console.log('Fees sheet name:', FEES_SHEET_NAME);
 
-/**
- * Map fees request body to a row array matching ALL sheet columns A–X:
- * A=Student_ID, B=name, C=TOTAL GROSS FEE, D=DISCOUNT, E=TOTAL NET FEE,
- * F=PAID FEE, G=PENDING FEE,
- * H=date,  I=detials1, J=ref1,  K=amount1,
- * L=date2, M=detials2, N=ref2,  O=amount2,
- * P=date3, Q=detials3, R=ref3,  S=amount3,
- * T=date4, U=detials4, V=ref4,  W=amount4
- */
-const mapFeesBodyToRow = (body) => [
-  String(body.studentId || body.Student_ID || body['Student ID'] || '').trim(),
-  String(body.name || body.Name || '').trim(),
-  String(body.totalGrossFee || body['TOTAL GROSS FEE'] || body.total_gross_fee || '').trim(),
-  String(body.discount || body.DISCOUNT || '').trim(),
-  String(body.totalNetFee || body['TOTAL NET FEE'] || body.total_net_fee || '').trim(),
-  String(body.paidFee || body['PAID FEE'] || body.paid_fee || '').trim(),
-  String(body.pendingFee || body['PENDING FEE'] || body.pending_fee || '').trim(),
-  // Installment 1
-  String(body.date || body.Date || body.DATE || '').trim(),
-  String(body.details1 || body.detials1 || body.DETIALS1 || '').trim(),
-  String(body.ref1 || body.REF1 || body.Ref1 || '').trim(),
-  String(body.amount1 || body.AMOUNT1 || body.Amount1 || '').trim(),
-  // Installment 2
-  String(body.date2 || body.Date2 || body.DATE2 || '').trim(),
-  String(body.details2 || body.detials2 || body.DETIALS2 || '').trim(),
-  String(body.ref2 || body.REF2 || body.Ref2 || '').trim(),
-  String(body.amount2 || body.AMOUNT2 || body.Amount2 || '').trim(),
-  // Installment 3
-  String(body.date3 || body.Date3 || body.DATE3 || '').trim(),
-  String(body.details3 || body.detials3 || body.DETIALS3 || '').trim(),
-  String(body.ref3 || body.REF3 || body.Ref3 || '').trim(),
-  String(body.amount3 || body.AMOUNT3 || body.Amount3 || '').trim(),
-  // Installment 4
-  String(body.date4 || body.Date4 || body.DATE4 || '').trim(),
-  String(body.details4 || body.detials4 || body.DETIALS4 || '').trim(),
-  String(body.ref4 || body.REF4 || body.Ref4 || '').trim(),
-  String(body.amount4 || body.AMOUNT4 || body.Amount4 || '').trim(),
-];
+// Helper: Map fees request body dynamically to spreadsheet headers
+const mapFeesBodyToRowWithHeaders = (body, headers) => {
+  return headers.map(header => {
+    const key = header.toLowerCase().replace(/[\s_-]+/g, '');
+    if (!key) return ''; // Empty column H or others
+
+    if (key === 'studentid' || key === 'student_id') return String(body.studentId || body.Student_ID || '').trim();
+    if (key === 'name') return String(body.name || body.Name || '').trim();
+    if (key === 'totalgrossfee') return String(body.totalGrossFee || body['TOTAL GROSS FEE'] || '').trim();
+    if (key === 'discount') return String(body.discount || '').trim();
+    if (key === 'totalnetfee') return String(body.totalNetFee || body['TOTAL NET FEE'] || '').trim();
+    if (key === 'paidfee') return String(body.paidFee || body['PAID FEE'] || '').trim();
+    if (key === 'pendingfee') return String(body.pendingFee || body['PENDING FEE'] || '').trim();
+
+    // Installment 1
+    if (key === 'date') return String(body.date || body.Date || '').trim();
+    if (key === 'detials1' || key === 'details1') return String(body.details1 || body.detials1 || '').trim();
+    if (key === 'ref1') return String(body.ref1 || '').trim();
+    if (key === 'amount1') return String(body.amount1 || '').trim();
+
+    // Installment 2
+    if (key === 'date2') return String(body.date2 || '').trim();
+    if (key === 'detials2' || key === 'details2') return String(body.details2 || body.detials2 || '').trim();
+    if (key === 'ref2') return String(body.ref2 || '').trim();
+    if (key === 'amount2') return String(body.amount2 || '').trim();
+
+    // Installment 3
+    if (key === 'date3') return String(body.date3 || '').trim();
+    if (key === 'detials3' || key === 'details3') return String(body.details3 || body.detials3 || '').trim();
+    if (key === 'ref3') return String(body.ref3 || '').trim();
+    if (key === 'amount3') return String(body.amount3 || '').trim();
+
+    // Installment 4
+    if (key === 'date4') return String(body.date4 || '').trim();
+    if (key === 'detials4' || key === 'details4') return String(body.details4 || body.detials4 || '').trim();
+    if (key === 'ref4') return String(body.ref4 || '').trim();
+    if (key === 'amount4') return String(body.amount4 || '').trim();
+
+    // Fallback using exact matching
+    return String(body[header] || '').trim();
+  });
+};
 
 // 1. CREATE Fees Record
 app.post('/api/fees', async (req, res) => {
   console.log('POST /api/fees - Body:', req.body);
   try {
     const sheets = getSheetsClient();
+
+    // Fetch headers first
+    const headerData = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${FEES_SHEET_NAME}!A1:Z1`,
+    });
+    const headers = headerData.data.values[0] || [];
+
     const newRows = Array.isArray(req.body)
-      ? req.body.map(mapFeesBodyToRow)
-      : [mapFeesBodyToRow(req.body)];
+      ? req.body.map(item => mapFeesBodyToRowWithHeaders(item, headers))
+      : [mapFeesBodyToRowWithHeaders(req.body, headers)];
 
     // Append after last populated row in column A (Student_ID)
     await sheets.spreadsheets.values.append({
@@ -1240,11 +1252,20 @@ app.put('/api/fees/:rowId', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
+    // Fetch headers first
+    const headerData = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${FEES_SHEET_NAME}!A1:Z1`,
+    });
+    const headers = headerData.data.values[0] || [];
+
+    const updatedRow = mapFeesBodyToRowWithHeaders(req.body, headers);
+
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${FEES_SHEET_NAME}!A${rowNumber}:W${rowNumber}`,
+      range: `${FEES_SHEET_NAME}!A${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [mapFeesBodyToRow(req.body)] },
+      requestBody: { values: [updatedRow] },
     });
 
     res.json({ success: true, message: 'Fee Record Updated Successfully', timestamp: new Date().toISOString() });
@@ -1552,6 +1573,141 @@ app.delete('/api/inquiry/:rowId', async (req, res) => {
     res.status(500).json({ success: false, message: error.message || 'Unable to delete inquiry record.' });
   }
 });
+
+// ================= RECEPTION CRUD ENDPOINTS =================
+
+// Helper to map reception body to row: A=empty, B=Number, C=Name, D=ID
+const mapReceptionBodyToRow = (body) => [
+  '',
+  String(body.number || body.Number || '').trim(),
+  String(body.name || body.Name || '').trim(),
+  String(body.receptionId || body.id || body.ID || '').trim(),
+];
+
+// 1. CREATE Reception Record
+app.post('/api/reception', async (req, res) => {
+  console.log('POST /api/reception - Body:', req.body);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = RECEPTION_SHEET_NAME;
+
+    // Get current rows to check existing IDs
+    const currentData = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1:Z2000`,
+    });
+    const currentRows = currentData.data.values || [];
+
+    let receptionId = req.body.receptionId || req.body.id || req.body.ID ? String(req.body.receptionId || req.body.id || req.body.ID).trim() : '';
+    if (!receptionId) {
+      // Find max numeric part from existing IDs (e.g. FR2001 -> 2001)
+      let maxIdNum = 2000;
+      if (currentRows.length > 1) {
+        currentRows.slice(1).forEach(row => {
+          const idStr = String(row[3] || '').trim(); // Column D is index 3
+          const numPart = parseInt(idStr.replace(/^FR/i, ''));
+          if (!isNaN(numPart) && numPart > maxIdNum) {
+            maxIdNum = numPart;
+          }
+        });
+      }
+      receptionId = `FR${maxIdNum + 1}`;
+    }
+
+    const body = { ...req.body, receptionId };
+    const newRow = mapReceptionBodyToRow(body);
+    const nextRowNumber = currentRows.length + 1;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A${nextRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [newRow],
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'Reception Record Added Successfully', receptionId, id: nextRowNumber });
+  } catch (error) {
+    console.error('Error adding reception record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to save reception record.' });
+  }
+});
+
+// 2. UPDATE Reception Record
+app.put('/api/reception/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`PUT /api/reception/${rowId} - Body:`, req.body);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = RECEPTION_SHEET_NAME;
+    const rowNumber = parseInt(rowId);
+
+    if (isNaN(rowNumber) || rowNumber < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID.' });
+    }
+
+    const updatedRow = mapReceptionBodyToRow(req.body);
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A${rowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [updatedRow],
+      },
+    });
+
+    res.json({ success: true, message: 'Reception Record Updated Successfully' });
+  } catch (error) {
+    console.error('Error updating reception record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update reception record.' });
+  }
+});
+
+// 3. DELETE Reception Record(s)
+app.delete('/api/reception/:rowId', async (req, res) => {
+  const { rowId } = req.params;
+  console.log(`DELETE /api/reception/${rowId}`);
+  try {
+    const sheets = getSheetsClient();
+    const sheetName = RECEPTION_SHEET_NAME;
+
+    const rowNumbersToDelete = rowId.split(',')
+      .map(id => parseInt(id.trim()))
+      .filter(num => !isNaN(num) && num >= 2); // protect header row
+
+    if (rowNumbersToDelete.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid row ID(s).' });
+    }
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = spreadsheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+    if (!sheet) throw new Error(`Sheet ${sheetName} not found.`);
+    const sheetId = sheet.properties.sheetId;
+
+    rowNumbersToDelete.sort((a, b) => b - a);
+
+    const requests = rowNumbersToDelete.map(rowNum => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rowNum - 1,
+          endIndex: rowNum,
+        },
+      },
+    }));
+
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+
+    res.json({ success: true, message: 'Reception Record Deleted Successfully' });
+  } catch (error) {
+    console.error('Error deleting reception record:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to delete reception record.' });
+  }
+});
+
 
 // Start Server
 app.listen(PORT, () => {

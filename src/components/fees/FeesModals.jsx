@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { fetchSectionData } from '../../services/sectionService';
 
 const EMPTY_FORM = {
   studentId: '',
@@ -38,6 +39,21 @@ const pick = (obj, ...keys) => {
   return '';
 };
 
+const resilientPick = (obj, ...keys) => {
+  if (!obj) return '';
+  const objKeys = Object.keys(obj);
+  for (const k of keys) {
+    const normK = k.toLowerCase().replace(/[\s_-]+/g, '');
+    const matchedKey = objKeys.find(
+      (ok) => ok.toLowerCase().replace(/[\s_-]+/g, '') === normK
+    );
+    if (matchedKey !== undefined && obj[matchedKey] !== undefined && obj[matchedKey] !== null && obj[matchedKey] !== '') {
+      return obj[matchedKey];
+    }
+  }
+  return '';
+};
+
 export default function FeesModals({
   isOpen,
   mode,
@@ -47,10 +63,117 @@ export default function FeesModals({
   loading,
 }) {
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+  const initialValuesRef = useRef({
+    paidFee: 0,
+    amount1: 0,
+    amount2: 0,
+    amount3: 0,
+    amount4: 0,
+  });
+
+  // Fetch students list once the modal is open
+  useEffect(() => {
+    if (isOpen) {
+      setLoadingStudents(true);
+      fetchSectionData('students')
+        .then((res) => {
+          if (res && res.rows) {
+            setStudents(res.rows);
+          }
+        })
+        .catch((err) => {
+          console.error('Error fetching students:', err);
+        })
+        .finally(() => {
+          setLoadingStudents(false);
+        });
+    }
+  }, [isOpen]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Normalize student objects using resilientPick
+  const normalizedStudents = useMemo(() => {
+    return students.map((s) => {
+      const studentId = resilientPick(s, 'student_id', 'Student ID', 'studentId', 'roll_no', 'Roll No') || '';
+      const name = resilientPick(s, 'student_name', 'Student Name', 'name', 'Name') || '';
+      const rollNumber = resilientPick(s, 'roll_number', 'Roll Number', 'rollNumber', 'roll_no', 'Roll No') || '';
+      const phone = resilientPick(s, 'student_phone', 'Student_Phone', 'parent_phone', 'Parent_Phone', 'mobileNumber', 'mobile_number', 'Mobile Number', 'parentMobile') || '';
+      const active = resilientPick(s, 'active', 'Active', 'is_active') !== false && String(resilientPick(s, 'status', 'Status')).toLowerCase() !== 'inactive';
+      
+      return { studentId, name, rollNumber, phone, active };
+    }).filter(s => s.studentId);
+  }, [students]);
+
+  // Filter students based on search query
+  const filteredStudents = useMemo(() => {
+    const query = String(formData.studentId || '').trim().toLowerCase();
+    if (!query) {
+      return normalizedStudents.filter(s => s.active).slice(0, 50);
+    }
+    return normalizedStudents
+      .filter((s) => {
+        return (
+          s.studentId.toLowerCase().includes(query) ||
+          s.name.toLowerCase().includes(query) ||
+          s.phone.toLowerCase().includes(query) ||
+          s.rollNumber.toLowerCase().includes(query)
+        );
+      })
+      .slice(0, 50);
+  }, [normalizedStudents, formData.studentId]);
+
+  // Auto-fill student name if the entered studentId exactly matches an existing student
+  useEffect(() => {
+    if (!formData.studentId) return;
+    const match = normalizedStudents.find(
+      (s) => s.studentId.toLowerCase() === formData.studentId.toLowerCase()
+    );
+    if (match && formData.name !== match.name) {
+      setFormData((prev) => ({ ...prev, name: match.name }));
+    }
+  }, [formData.studentId, normalizedStudents]);
+
+  const handleSelectStudent = (student) => {
+    setFormData((prev) => ({
+      ...prev,
+      studentId: student.studentId,
+      name: student.name,
+    }));
+    setShowDropdown(false);
+  };
+
 
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && feesData) {
+        const loadedPaidFee = parseFloat(pick(feesData, 'PAID FEE', 'paid_fee', 'Paid Fee')) || 0;
+        const loadedAmt1 = parseFloat(pick(feesData, 'amount1', 'AMOUNT1', 'Amount1')) || 0;
+        const loadedAmt2 = parseFloat(pick(feesData, 'amount2', 'AMOUNT2')) || 0;
+        const loadedAmt3 = parseFloat(pick(feesData, 'amount3', 'AMOUNT3')) || 0;
+        const loadedAmt4 = parseFloat(pick(feesData, 'amount4', 'AMOUNT4')) || 0;
+
+        initialValuesRef.current = {
+          paidFee: loadedPaidFee,
+          amount1: loadedAmt1,
+          amount2: loadedAmt2,
+          amount3: loadedAmt3,
+          amount4: loadedAmt4,
+        };
+
         setFormData({
           studentId:    pick(feesData, 'Student_ID', 'student_id', 'Student ID'),
           name:         pick(feesData, 'name', 'Name'),
@@ -77,10 +200,48 @@ export default function FeesModals({
           amount4:      pick(feesData, 'amount4', 'AMOUNT4'),
         });
       } else {
+        initialValuesRef.current = {
+          paidFee: 0,
+          amount1: 0,
+          amount2: 0,
+          amount3: 0,
+          amount4: 0,
+        };
         setFormData(EMPTY_FORM);
       }
     }
   }, [isOpen, mode, feesData]);
+
+  const hasInstallments = Boolean(
+    formData.amount1 ||
+    formData.amount2 ||
+    formData.amount3 ||
+    formData.amount4
+  );
+
+  // Auto-calculate Paid Fee based on installment changes relative to initial values
+  useEffect(() => {
+    if (hasInstallments) {
+      const amt1 = parseFloat(formData.amount1) || 0;
+      const amt2 = parseFloat(formData.amount2) || 0;
+      const amt3 = parseFloat(formData.amount3) || 0;
+      const amt4 = parseFloat(formData.amount4) || 0;
+
+      const init = initialValuesRef.current;
+      const delta1 = amt1 - init.amount1;
+      const delta2 = amt2 - init.amount2;
+      const delta3 = amt3 - init.amount3;
+      const delta4 = amt4 - init.amount4;
+
+      const calculatedPaidFee = init.paidFee + delta1 + delta2 + delta3 + delta4;
+
+      setFormData(prev => {
+        const nextPaidFee = String(calculatedPaidFee >= 0 ? calculatedPaidFee : 0);
+        if (prev.paidFee === nextPaidFee) return prev;
+        return { ...prev, paidFee: nextPaidFee };
+      });
+    }
+  }, [formData.amount1, formData.amount2, formData.amount3, formData.amount4, hasInstallments]);
 
   // Auto-calculate derived fields whenever gross fee, discount or paid fee changes
   useEffect(() => {
@@ -179,7 +340,68 @@ export default function FeesModals({
           {/* Student Info */}
           <Section title="Student Information">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Student ID" name="studentId" value={formData.studentId} onChange={handleChange} disabled={loading} placeholder="e.g. F2627111001" />
+              <div className="relative" ref={dropdownRef}>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Student ID</label>
+                <div className="relative mt-1.5">
+                  <input
+                    type="text"
+                    name="studentId"
+                    value={formData.studentId}
+                    onChange={handleChange}
+                    onFocus={() => setShowDropdown(true)}
+                    disabled={loading}
+                    placeholder="e.g. F2627111001"
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white disabled:opacity-60"
+                  />
+                  {loadingStudents && (
+                    <div className="absolute right-3 top-2.5">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-blue border-t-transparent" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Dropdown panel */}
+                {showDropdown && filteredStudents.length > 0 && (
+                  <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-white animate-in fade-in slide-in-from-top-1 duration-100">
+                    {filteredStudents.map((student) => (
+                      <button
+                        key={student.studentId}
+                        type="button"
+                        onClick={() => handleSelectStudent(student)}
+                        className="flex w-full flex-col px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-50 dark:border-slate-700/50 last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-900 dark:text-white">
+                            {student.studentId}
+                          </span>
+                          {student.rollNumber && (
+                            <span className="text-xs text-slate-400 dark:text-slate-500">
+                              Roll: {student.rollNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {student.name}
+                          </span>
+                          {student.phone && (
+                            <span className="text-xs text-slate-400 dark:text-slate-500">
+                              📞 {student.phone}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {showDropdown && !loadingStudents && filteredStudents.length === 0 && formData.studentId.trim() !== '' && (
+                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 shadow-lg">
+                    No matching students found
+                  </div>
+                )}
+              </div>
               <Field label="Full Name" name="name" value={formData.name} onChange={handleChange} disabled={loading} placeholder="Student full name" />
             </div>
           </Section>
@@ -192,7 +414,11 @@ export default function FeesModals({
               <ComputedField label="Total Net Fee (auto)" value={formData.totalNetFee} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <Field label="Paid Fee" name="paidFee" inputMode="numeric" value={formData.paidFee} onChange={handleChange} disabled={loading} placeholder="0" />
+              {hasInstallments ? (
+                <ComputedField label="Paid Fee (auto)" value={formData.paidFee} />
+              ) : (
+                <Field label="Paid Fee" name="paidFee" inputMode="numeric" value={formData.paidFee} onChange={handleChange} disabled={loading} placeholder="0" />
+              )}
               <ComputedField label="Pending Fee (auto)" value={formData.pendingFee} />
             </div>
           </Section>

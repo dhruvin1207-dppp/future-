@@ -25,6 +25,8 @@ import { addTeacher, updateTeacher, deleteTeachers } from './services/teachersSe
 import TeachersModals from './components/teachers/TeachersModals';
 import { addInquiry, updateInquiry, deleteInquiries } from './services/inquiryService';
 import InquiryModals from './components/inquiry/InquiryModals';
+import { addReception, updateReception, deleteReception } from './services/receptionService';
+import ReceptionModals from './components/reception/ReceptionModals';
 
 function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -51,6 +53,8 @@ function AppContent() {
   const [teachersModalMode, setTeachersModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
   const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
   const [inquiryModalMode, setInquiryModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
+  const [receptionModalOpen, setReceptionModalOpen] = useState(false);
+  const [receptionModalMode, setReceptionModalMode] = useState('add'); // 'add' | 'edit' | 'delete'
   const [crudLoading, setCrudLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -319,6 +323,35 @@ function AppContent() {
     }
   };
 
+  const handleSaveReception = async (formData) => {
+    setCrudLoading(true);
+    try {
+      if (receptionModalMode === 'add') {
+        await addReception(formData);
+        setToast({ message: 'Reception Record Added Successfully', type: 'success' });
+      } else if (receptionModalMode === 'edit') {
+        const rowId = selectedRows[0]?.id;
+        await updateReception(rowId, formData);
+        setToast({ message: 'Reception Record Updated Successfully', type: 'success' });
+      } else if (receptionModalMode === 'delete') {
+        const rowIds = selectedRows.map(r => r.id);
+        await deleteReception(rowIds);
+        setToast({ message: 'Reception Record Deleted Successfully', type: 'success' });
+      }
+      clearSheetCache();
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedRows([]);
+      setReceptionModalOpen(false);
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.message || 'Unable to save changes. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
   const getRowStudentId = (row) => {
     if (!row) return '';
     const keys = Object.keys(row);
@@ -358,6 +391,9 @@ function AppContent() {
     } else if (activePage === 'newStudentInquiry') {
       setInquiryModalMode('edit');
       setInquiryModalOpen(true);
+    } else if (activePage === 'reception') {
+      setReceptionModalMode('edit');
+      setReceptionModalOpen(true);
     } else {
       setTtModalMode('edit');
       setTtModalOpen(true);
@@ -386,6 +422,9 @@ function AppContent() {
     } else if (activePage === 'newStudentInquiry') {
       setInquiryModalMode('delete');
       setInquiryModalOpen(true);
+    } else if (activePage === 'reception') {
+      setReceptionModalMode('delete');
+      setReceptionModalOpen(true);
     } else {
       setTtModalMode('delete');
       setTtModalOpen(true);
@@ -436,6 +475,9 @@ function AppContent() {
             } else if (activePage === 'newStudentInquiry') {
               setInquiryModalMode('add');
               setInquiryModalOpen(true);
+            } else if (activePage === 'reception') {
+              setReceptionModalMode('add');
+              setReceptionModalOpen(true);
             } else {
               setTtModalMode('add');
               setTtModalOpen(true);
@@ -540,6 +582,16 @@ function AppContent() {
         selectedRows={selectedRows}
         onClose={() => setInquiryModalOpen(false)}
         onSave={handleSaveInquiry}
+        loading={crudLoading}
+      />
+
+      <ReceptionModals
+        isOpen={receptionModalOpen}
+        mode={receptionModalMode}
+        receptionData={selectedRows[0]}
+        selectedRows={selectedRows}
+        onClose={() => setReceptionModalOpen(false)}
+        onSave={handleSaveReception}
         loading={crudLoading}
       />
 
