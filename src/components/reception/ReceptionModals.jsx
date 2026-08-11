@@ -40,7 +40,7 @@ export default function ReceptionModals({
         setFormData({
           name: pick(receptionData, 'Name', 'name'),
           number: pick(receptionData, 'Number', 'number', 'phone', 'phoneNumber'),
-          receptionId: pick(receptionData, 'ID', 'id', 'receptionId', 'reception_id'),
+          receptionId: receptionData.ID || receptionData.receptionId || '',
         });
       } else {
         setFormData({
