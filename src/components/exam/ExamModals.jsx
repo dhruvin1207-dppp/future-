@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const EXAM_TYPES = ['weekly', 'Board', 'JEE/NEET', 'monthly', 'terminal', 'prelim'];
+const EXAM_TYPES = ['weekly', 'Board', 'JEE/NEET', 'monthly', 'Session', 'prelim'];
 
 export default function ExamModals({
   isOpen,
