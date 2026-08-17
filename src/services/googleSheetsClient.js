@@ -230,8 +230,8 @@ export const processAttendanceRows = (rows) => {
       if (match) {
         studentColumns.push({
           columnIndex: idx,
-          studentId: match[1].trim(),
-          studentName: match[2].trim(),
+          studentId: match[1].trim().replace(/\]+$/, ''),
+          studentName: match[2].trim().replace(/\]+$/, ''),
         });
       }
     }

@@ -1,6 +1,7 @@
 import { useLiveAttendance } from '../hooks/useLiveAttendance';
 import { getAvailableAttendanceSheets } from '../services/googleSheetsClient';
 import BaserowDataTable from '../components/tables/BaserowDataTable';
+import { normalizeStudentId } from '../utils/studentId';
 
 /**
  * Attendance Table from Google Sheets
@@ -47,7 +48,7 @@ export default function GoogleSheetsAttendanceTable() {
 
   // Format data for BaserowDataTable
   const rows = (summaryByStudent || []).map((student) => ({
-    student_id: student.studentId,
+    student_id: normalizeStudentId(student.studentId).toUpperCase(),
     student_name: student.studentName,
     present_count: student.presentCount,
     total_classes: student.totalCount,

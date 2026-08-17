@@ -52,14 +52,19 @@ export default function StudentDashboardPage({ data }) {
   // Filter attendance data for selected student
   const filteredAttendance = useMemo(() => {
     const match = charts.attendanceByStudent?.find(
-      (s) => normalizeStudentId(s.studentId) === normalizeStudentId(effectiveStudentId)
+      (s) =>
+        normalizeStudentId(s.studentId) === normalizeStudentId(effectiveStudentId) ||
+        (selectedStudent?.name &&
+          s.studentName &&
+          (String(s.studentName).toLowerCase().includes(String(selectedStudent.name).toLowerCase().trim()) ||
+           String(selectedStudent.name).toLowerCase().includes(String(s.studentName).toLowerCase().trim())))
     );
     if (match) {
       return {
         percentage: match.value,
-        centerLabel: match.studentId,
+        centerLabel: selectedStudent?.studentId || match.studentId,
         subtitle: `${match.present} present / ${match.total} classes`,
-        studentName: selectedStudent?.name || match.studentId,
+        studentName: selectedStudent?.name || match.studentName || match.studentId,
       };
     }
     return {
@@ -89,12 +94,16 @@ export default function StudentDashboardPage({ data }) {
   const selectedStudentAvgMarks = useMemo(() => {
     if (!charts.marksRecords) return 0;
     const studentRecords = charts.marksRecords.filter(
-      (m) => normalizeStudentId(m.studentId) === normalizeStudentId(effectiveStudentId)
+      (m) =>
+        normalizeStudentId(m.studentId) === normalizeStudentId(effectiveStudentId) ||
+        (selectedStudent?.name &&
+          m.studentName &&
+          String(m.studentName).toLowerCase().includes(String(selectedStudent.name).toLowerCase().trim()))
     );
     if (studentRecords.length === 0) return 0;
     const avgPercent = studentRecords.reduce((acc, m) => acc + (m.percent || 0), 0) / studentRecords.length;
     return Math.round(avgPercent);
-  }, [effectiveStudentId, charts.marksRecords]);
+  }, [effectiveStudentId, charts.marksRecords, selectedStudent]);
 
   // Determine performance rating label and card accent
   const performanceRating = useMemo(() => {
