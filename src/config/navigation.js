@@ -28,6 +28,7 @@ export const menuItems = [
   { id: 'activeSession', label: 'Active Session', icon: 'session' },
   { id: 'fees', label: 'Fees', icon: 'fees' },
   { id: 'reception', label: 'Reception', icon: 'session' },
+  { id: 'adminPanel', label: 'Staff Page Access', icon: 'shield', adminOnly: true },
 ];
 
 export const pageTitles = {
@@ -45,4 +46,6 @@ export const pageTitles = {
   activeSession: { title: 'Active Session', subtitle: 'Active user login roles & sessions' },
   fees: { title: 'Fees', subtitle: 'Student fee records & payment tracking' },
   reception: { title: 'Reception', subtitle: 'Receptionist call and visitor logs' },
+  adminPanel: { title: 'Staff Page Access', subtitle: 'Manage which pages are visible to Staff members' },
 };
+

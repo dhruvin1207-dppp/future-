@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LoginPage from './components/auth/LoginPage';
 import { useDashboardData } from './hooks/useDashboardData';
 import { exportReportCsv, exportMarksToExcel } from './services/dashboardService';
 import { clearSheetCache } from './services/googleSheetsClient';
@@ -7,7 +9,7 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import PageRouter from './pages/PageRouter';
 import { isGoogleSheetsConfigured } from './config/env';
-import { pageTitles } from './config/navigation';
+import { pageTitles, menuItems } from './config/navigation';
 import { addStudent, updateStudent, deleteStudents } from './services/studentService';
 import StudentModals from './components/students/StudentModals';
 import Toast from './components/ui/Toast';
@@ -29,8 +31,18 @@ import { addReception, updateReception, deleteReception } from './services/recep
 import ReceptionModals from './components/reception/ReceptionModals';
 
 function AppContent() {
+  const { user, isPageAllowed } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Auto-redirect staff away from unpermitted pages
+  useEffect(() => {
+    if (user && !isPageAllowed(activePage)) {
+      const firstAllowed = menuItems.find((item) => isPageAllowed(item.id))?.id || 'dashboard';
+      setActivePage(firstAllowed);
+    }
+  }, [user, activePage, isPageAllowed]);
+
   const { data, loading, refreshing } = useDashboardData(
     activePage === 'dashboard' || activePage === 'studentDashboard' || activePage === 'marks'
   );
@@ -58,6 +70,11 @@ function AppContent() {
   const [crudLoading, setCrudLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
 
   const pageMeta = pageTitles[activePage] || pageTitles.dashboard;
 
@@ -637,7 +654,10 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
+

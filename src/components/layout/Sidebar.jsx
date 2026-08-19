@@ -1,5 +1,6 @@
 import { brand } from '../../config/brand';
 import { menuItems } from '../../config/navigation';
+import { useAuth } from '../../context/AuthContext';
 
 const Icon = ({ name }) => {
   const paths = {
@@ -13,9 +14,10 @@ const Icon = ({ name }) => {
     exam: 'M8 4h8v2H8V4zm0 6h8v2H8v-2zm0 6h5v2H8v-2z',
     session: 'M15 7a2 2 0 012 2m-1.5 6l-3.5 3.5-2-2-2 2-2-2 1-1V12h1.5v-1.5h1.5v-1.5L12 7.5a4.5 4.5 0 116 6z',
     fees: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    shield: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
   };
   const d = paths[name] || paths.grid;
-  const strokeIcons = ['check', 'calendar', 'inquiry', 'session', 'fees'];
+  const strokeIcons = ['check', 'calendar', 'inquiry', 'session', 'fees', 'shield'];
   const useStroke = strokeIcons.includes(name);
 
   return (
@@ -30,6 +32,10 @@ const Icon = ({ name }) => {
 };
 
 export default function Sidebar({ activeItem, onNavigate, isOpen, onClose }) {
+  const { user, logout, isPageAllowed } = useAuth();
+
+  const visibleMenuItems = menuItems.filter((item) => isPageAllowed(item.id));
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -72,8 +78,10 @@ export default function Sidebar({ activeItem, onNavigate, isOpen, onClose }) {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const active = activeItem === item.id;
+              const isAdminOnly = item.adminOnly;
+
               return (
                 <li key={item.id}>
                   <button
@@ -85,11 +93,18 @@ export default function Sidebar({ activeItem, onNavigate, isOpen, onClose }) {
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                       active
                         ? 'gradient-accent text-white shadow-md'
+                        : isAdminOnly
+                        ? 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-brand-blue dark:text-slate-300 dark:hover:bg-slate-800'
                     }`}
                   >
                     <Icon name={item.icon} />
-                    {item.label}
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {isAdminOnly && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                        Admin
+                      </span>
+                    )}
                   </button>
                 </li>
               );
@@ -97,8 +112,44 @@ export default function Sidebar({ activeItem, onNavigate, isOpen, onClose }) {
           </ul>
         </nav>
 
-        <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
-          <p className="text-xs text-slate-400">{brand.copyright}</p>
+        {/* User Card & Logout Footer */}
+        <div className="border-t border-slate-100 p-4 dark:border-slate-800 space-y-3">
+          {user && (
+            <div className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700/60">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs text-white shrink-0 ${
+                  user.role === 'admin' ? 'bg-gradient-to-tr from-indigo-600 to-purple-600' : 'bg-gradient-to-tr from-emerald-600 to-teal-600'
+                }`}>
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                    {user.name}
+                  </p>
+                  <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.2 rounded uppercase ${
+                    user.role === 'admin' 
+                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' 
+                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                  }`}>
+                    {user.role}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={logout}
+                title="Logout"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <p className="text-[11px] text-slate-400 text-center">{brand.copyright}</p>
         </div>
       </aside>
     </>

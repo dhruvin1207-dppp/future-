@@ -3,6 +3,7 @@ import StudentDashboardPage from './StudentDashboardPage';
 import SectionTablePage from './SectionTablePage';
 import TaskManagementPage from './TaskManagementPage';
 import DayByDayAttendancePage from './DayByDayAttendancePage';
+import AdminPanelPage from './AdminPanelPage';
 import { pageTitles, tableSections } from '../config/navigation';
 
 const sectionIds = new Set(tableSections.map((s) => s.id));
@@ -31,6 +32,10 @@ export default function PageRouter({
     return <DayByDayAttendancePage />;
   }
 
+  if (activePage === 'adminPanel') {
+    return <AdminPanelPage />;
+  }
+
   if (sectionIds.has(activePage)) {
     const title = pageTitles[activePage]?.title || activePage;
     return (
@@ -47,3 +52,4 @@ export default function PageRouter({
 
   return null;
 }
+

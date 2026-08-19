@@ -1,4 +1,5 @@
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import LiveAttendanceIndicator from '../ui/LiveAttendanceIndicator';
 
 export default function Header({
@@ -19,6 +20,7 @@ export default function Header({
   crudLoading = false,
 }) {
   const { darkMode, toggleDarkMode } = useTheme();
+  const { user, logout } = useAuth();
 
   const isCrudPage =
     activePage === 'students' ||
@@ -94,6 +96,26 @@ export default function Header({
               Updated {new Date(lastUpdated).toLocaleTimeString()}
               {dataSource === 'mock' && ' · Demo data'}
             </span>
+          )}
+
+          {user && (
+            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+              <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                user.role === 'admin'
+                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${user.role === 'admin' ? 'bg-indigo-600' : 'bg-emerald-600'}`} />
+                {user.name} ({user.role.toUpperCase()})
+              </span>
+              <button
+                type="button"
+                onClick={logout}
+                className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                Logout
+              </button>
+            </div>
           )}
 
           <button
