@@ -135,9 +135,39 @@ export default function SectionTablePage({
 
     if (section === 'marks') {
       if (effectiveStudentId) {
+        const selNorm = normalizeStudentId(effectiveStudentId);
+        const targetStudent = students.find((s) => {
+          const sId = getRowField(s, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
+          return normalizeStudentId(sId) === selNorm;
+        });
+
+        const targetName = targetStudent
+          ? getRowField(targetStudent, 'name', 'studentName', 'student_name', 'Student Name', 'student_Name')
+          : '';
+        const targetNameNorm = String(targetName).trim().toLowerCase();
+        const targetFirstName = targetNameNorm.split(' ')[0];
+
         rowsFiltered = rowsSrc.filter((row) => {
-          const id = getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
-          return normalizeStudentId(id) === normalizeStudentId(effectiveStudentId);
+          const rowId = getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
+          const rowName = getRowField(row, 'name', 'studentName', 'student_name', 'Student Name', 'student_Name');
+
+          // 1. Direct Student ID match (normalized)
+          if (rowId && normalizeStudentId(rowId) === selNorm) {
+            return true;
+          }
+
+          // 2. Student Name match (handles rows where name matches but student_id column has alternate ID)
+          if (rowName) {
+            const rowNameNorm = String(rowName).trim().toLowerCase();
+            if (targetNameNorm && (rowNameNorm.includes(targetNameNorm) || targetNameNorm.includes(rowNameNorm))) {
+              return true;
+            }
+            if (targetFirstName && targetFirstName.length > 2 && rowNameNorm.includes(targetFirstName)) {
+              return true;
+            }
+          }
+
+          return false;
         });
       }
 

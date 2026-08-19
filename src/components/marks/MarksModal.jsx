@@ -11,10 +11,13 @@ const MOCK_EXAMS = [
 
 // Mock Students as a fallback if Google Sheets is not configured or fails
 const MOCK_STUDENTS = [
-  { id: 101, studentId: 'st101', name: 'Het', className: '11', section: 'G', active: true },
-  { id: 102, studentId: 'st102', name: 'Student 2', className: '11', section: 'G', active: true },
-  { id: 103, studentId: 'st103', name: 'Student 3', className: '11', section: 'G', active: true },
-  { id: 104, studentId: 'st104', name: 'Student 4', className: '12', section: 'A', active: true },
+  { id: 101, studentId: 'F2627111001', name: 'AAKANSHA', className: '11', section: 'G', course: 'PCB', active: true },
+  { id: 102, studentId: 'F2627111002', name: 'JEEL', className: '11', section: 'G', course: 'PCM', active: true },
+  { id: 103, studentId: 'F2627111003', name: 'KEYA', className: '11', section: 'G', course: 'PCM', active: true },
+  { id: 104, studentId: 'F2627111004', name: 'PREKSHA', className: '11', section: 'G', course: 'PCB', active: true },
+  { id: 105, studentId: 'F2627111005', name: 'RITU', className: '11', section: 'G', course: 'PCB', active: true },
+  { id: 106, studentId: 'F2627111006', name: 'SHRUTI', className: '11', section: 'G', course: 'PCB', active: true },
+  { id: 107, studentId: 'F2627111007', name: 'TAMANNA', className: '11', section: 'G', course: 'PCM', active: true },
 ];
 
 // Helper: Pick a value from an object based on multiple possible keys (resilient to casing/spaces/symbols)
@@ -53,6 +56,9 @@ export default function MarksModal({
   const [selectedExam, setSelectedExam] = useState(null);
   const [examSearchQuery, setExamSearchQuery] = useState('');
 
+  // Course filter state: 'ALL' | 'B' | 'M' | 'P' | 'C'
+  const [courseFilter, setCourseFilter] = useState('ALL');
+
   // Obtained marks map: studentId -> score string (number or 'AB')
   const [obtainedMarks, setObtainedMarks] = useState({});
 
@@ -69,6 +75,26 @@ export default function MarksModal({
 
   const [validationErrors, setValidationErrors] = useState({});
 
+  // Auto-detect course filter based on selected exam subject
+  useEffect(() => {
+    if (selectedExam) {
+      const subj = String(pick(selectedExam, 'subject', 'Subject')).toUpperCase();
+      if (subj.includes('MATH')) {
+        setCourseFilter('M');
+      } else if (subj.includes('BIO')) {
+        setCourseFilter('B');
+      } else if (subj.includes('PHYSIC')) {
+        setCourseFilter('P');
+      } else if (subj.includes('CHEM')) {
+        setCourseFilter('C');
+      } else {
+        setCourseFilter('ALL');
+      }
+    } else {
+      setCourseFilter('ALL');
+    }
+  }, [selectedExam]);
+
   // Reset states on open/close or mode change
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +105,7 @@ export default function MarksModal({
         setSelectedExam(null);
         setObtainedMarks({});
         setExamSearchQuery('');
+        setCourseFilter('ALL');
         
         // Fetch exams and students
         const loadResources = async () => {
@@ -135,8 +162,9 @@ export default function MarksModal({
       id: s.id,
       studentId: pick(s, 'student_id', 'Student ID', 'roll_no', 'Roll No') || '',
       name: pick(s, 'student_name', 'Student Name', 'name', 'Name') || 'Unknown Student',
-      className: pick(s, 'class', 'Class', 'className', 'course', 'Course') || '',
+      className: pick(s, 'class', 'Class', 'className') || '',
       section: pick(s, 'section', 'Section') || '',
+      course: pick(s, 'Course', 'course', 'subject_group', 'Group', 'group') || '',
       active: pick(s, 'active', 'Active', 'is_active') !== false && String(pick(s, 'status', 'Status')).toLowerCase() !== 'inactive',
     }));
   }, [students]);
@@ -183,6 +211,28 @@ export default function MarksModal({
     }).sort((a, b) => a.studentId.localeCompare(b.studentId, undefined, { numeric: true }));
   }, [selectedExam, normalizedStudents]);
 
+  // Filter matching students by course filter (ALL, B, M, P, C)
+  const filteredStudents = useMemo(() => {
+    if (courseFilter === 'ALL') return matchingStudents;
+    return matchingStudents.filter((student) => {
+      const c = String(student.course || '').toUpperCase();
+      return c.includes(courseFilter);
+    });
+  }, [matchingStudents, courseFilter]);
+
+  // Calculate student counts for course filter options
+  const courseCounts = useMemo(() => {
+    const counts = { ALL: matchingStudents.length, B: 0, M: 0, P: 0, C: 0 };
+    matchingStudents.forEach((student) => {
+      const c = String(student.course || '').toUpperCase();
+      if (c.includes('B')) counts.B++;
+      if (c.includes('M')) counts.M++;
+      if (c.includes('P')) counts.P++;
+      if (c.includes('C')) counts.C++;
+    });
+    return counts;
+  }, [matchingStudents]);
+
   // Filter exams based on search query (by subject, class, or type)
   const filteredExams = useMemo(() => {
     const q = examSearchQuery.trim().toLowerCase();
@@ -205,11 +255,11 @@ export default function MarksModal({
 
   // Calculate wizard stats
   const filledCount = useMemo(() => {
-    return matchingStudents.filter((s) => {
+    return filteredStudents.filter((s) => {
       const val = obtainedMarks[s.studentId];
       return val !== undefined && val !== null && String(val).trim() !== '';
     }).length;
-  }, [matchingStudents, obtainedMarks]);
+  }, [filteredStudents, obtainedMarks]);
 
   if (!isOpen) return null;
 
@@ -245,10 +295,10 @@ export default function MarksModal({
     }
   };
 
-  // Quick Action: Set all empty inputs to Absent ('AB')
+  // Quick Action: Set all empty inputs to Absent ('AB') for current filtered view
   const handleBulkSetAbsent = () => {
     const nextMarks = { ...obtainedMarks };
-    matchingStudents.forEach((student) => {
+    filteredStudents.forEach((student) => {
       const val = nextMarks[student.studentId];
       if (val === undefined || val === null || String(val).trim() === '') {
         nextMarks[student.studentId] = 'AB';
@@ -475,14 +525,55 @@ export default function MarksModal({
           </div>
         </div>
 
+        {/* Course / Subject Filter Pills */}
+        <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Filter Students by Course Group:
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { key: 'ALL', label: 'All Courses', count: courseCounts.ALL },
+              { key: 'B', label: 'Biology (B)', count: courseCounts.B },
+              { key: 'M', label: 'Maths (M)', count: courseCounts.M },
+              { key: 'P', label: 'Physics (P)', count: courseCounts.P },
+              { key: 'C', label: 'Chemistry (C)', count: courseCounts.C },
+            ].map((tab) => {
+              const isActive = courseFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setCourseFilter(tab.key)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    isActive
+                      ? 'bg-brand-blue text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200/60 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-750 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Bulk Action Controls */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-850">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-              Filtered Student List ({matchingStudents.length} active students)
+              Filtered Student List ({filteredStudents.length} active students)
             </span>
             <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-              {filledCount}/{matchingStudents.length} filled
+              {filledCount}/{filteredStudents.length} filled
             </span>
           </div>
 
@@ -505,18 +596,22 @@ export default function MarksModal({
         </div>
 
         {/* Student Marks List */}
-        {matchingStudents.length === 0 ? (
+        {filteredStudents.length === 0 ? (
           <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/25 p-8 text-center dark:border-amber-900/20 dark:bg-amber-950/5">
             <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-              No active students found matching Class {eClass}{eSect ? ` - Section ${eSect}` : ''}.
+              {matchingStudents.length === 0
+                ? `No active students found matching Class ${eClass}${eSect ? ` - Section ${eSect}` : ''}.`
+                : `No active students found with course filter matching "${courseFilter}".`}
             </p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Please double check the class specifications in the Students record.
+              {matchingStudents.length === 0
+                ? 'Please double check the class specifications in the Students record.'
+                : 'Try selecting a different course filter pill (e.g. All Courses).'}
             </p>
           </div>
         ) : (
           <div className="max-h-[45vh] overflow-y-auto pr-1 space-y-3">
-            {matchingStudents.map((student) => {
+            {filteredStudents.map((student) => {
               const hasErr = validationErrors[student.studentId];
               const scoreVal = obtainedMarks[student.studentId] || '';
 
@@ -530,7 +625,14 @@ export default function MarksModal({
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="font-bold text-slate-800 dark:text-slate-100 truncate">{student.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-800 dark:text-slate-100 truncate">{student.name}</span>
+                      {student.course && (
+                        <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold uppercase text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                          Course: {student.course}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-0.5 text-xs text-slate-400">
                       ID: <strong className="font-semibold text-slate-500 dark:text-slate-300">{student.studentId}</strong> · Class: {student.className} {student.section ? `(${student.section})` : ''}
                     </div>
@@ -623,101 +725,108 @@ export default function MarksModal({
   // ── EDIT MODAL ────────────────────────────────────────────
   if (mode === 'edit') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
         <div
-          className="w-full max-w-lg rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 my-8 animate-in fade-in-50 zoom-in-95 duration-200"
+          className="flex flex-col w-full max-w-lg max-h-[90vh] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          {/* Header - Fixed at Top */}
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">✏️ Edit Student Marks</h3>
               <p className="text-xs text-slate-500 mt-0.5 dark:text-slate-400">Modify the student's exam score</p>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <button
+              type="button"
+              onClick={onClose}
+              title="Close window (Esc)"
+              className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Student Name</label>
-              <div className="mt-1 w-full rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350">
-                {editForm.name} (ID: {editForm.studentId})
+          {/* Form Content - Scrollable Body */}
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Student Name</label>
+                <div className="mt-1 w-full rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-350">
+                  {editForm.name} (ID: {editForm.studentId})
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Subject</label>
+                  <input
+                    type="text"
+                    name="subject"
+                    value={editForm.subject}
+                    onChange={handleEditChange}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  {validationErrors.subject && <p className="mt-1 text-xs text-rose-500">{validationErrors.subject}</p>}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Exam Type</label>
+                  <input
+                    type="text"
+                    name="examType"
+                    value={editForm.examType}
+                    onChange={handleEditChange}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  {validationErrors.examType && <p className="mt-1 text-xs text-rose-500">{validationErrors.examType}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Exam Date</label>
+                  <input
+                    type="text"
+                    name="date"
+                    value={editForm.date}
+                    onChange={handleEditChange}
+                    placeholder="DD-MM-YYYY"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  {validationErrors.date && <p className="mt-1 text-xs text-rose-500">{validationErrors.date}</p>}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Marks</label>
+                  <input
+                    type="number"
+                    name="totalMarks"
+                    value={editForm.totalMarks}
+                    onChange={handleEditChange}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  {validationErrors.totalMarks && <p className="mt-1 text-xs text-rose-500">{validationErrors.totalMarks}</p>}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Obtained Score</label>
+                  <input
+                    type="text"
+                    name="obtainMarks"
+                    value={editForm.obtainMarks}
+                    onChange={handleEditChange}
+                    placeholder="Number or AB"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  {validationErrors.obtainMarks && <p className="mt-1 text-xs text-rose-500">{validationErrors.obtainMarks}</p>}
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Subject</label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={editForm.subject}
-                  onChange={handleEditChange}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                {validationErrors.subject && <p className="mt-1 text-xs text-rose-500">{validationErrors.subject}</p>}
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Exam Type</label>
-                <input
-                  type="text"
-                  name="examType"
-                  value={editForm.examType}
-                  onChange={handleEditChange}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                {validationErrors.examType && <p className="mt-1 text-xs text-rose-500">{validationErrors.examType}</p>}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Exam Date</label>
-                <input
-                  type="text"
-                  name="date"
-                  value={editForm.date}
-                  onChange={handleEditChange}
-                  placeholder="DD-MM-YYYY"
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                {validationErrors.date && <p className="mt-1 text-xs text-rose-500">{validationErrors.date}</p>}
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Marks</label>
-                <input
-                  type="number"
-                  name="totalMarks"
-                  value={editForm.totalMarks}
-                  onChange={handleEditChange}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                {validationErrors.totalMarks && <p className="mt-1 text-xs text-rose-500">{validationErrors.totalMarks}</p>}
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Obtained Score</label>
-                <input
-                  type="text"
-                  name="obtainMarks"
-                  value={editForm.obtainMarks}
-                  onChange={handleEditChange}
-                  placeholder="Number or AB"
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-                {validationErrors.obtainMarks && <p className="mt-1 text-xs text-rose-500">{validationErrors.obtainMarks}</p>}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            {/* Footer - Fixed at Bottom */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 shrink-0">
               <button
                 type="button"
                 onClick={onClose}
@@ -749,16 +858,16 @@ export default function MarksModal({
 
   // ── ADD WIZARD MODAL ──────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-2xl rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 my-8 animate-in fade-in-50 zoom-in-95 duration-200"
+        className="flex flex-col w-full max-w-2xl max-h-[90vh] sm:max-h-[85vh] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+        {/* Header - Fixed & Sticky at Top */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              ➕ Add Marks Entries
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>➕ Add Marks Entries</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5 dark:text-slate-400">
               {currentStep === 1
@@ -766,24 +875,31 @@ export default function MarksModal({
                 : 'Step 2: Enter student marks for the exam class'}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close window (Esc)"
+            className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Wizard Forms */}
-        <form onSubmit={handleSubmit} className="p-6">
-          {errorMsg && (
-            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm font-semibold text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400">
-              ⚠ {errorMsg}
-            </div>
-          )}
-          {currentStep === 1 ? renderStep1() : renderStep2()}
+        {/* Wizard Forms - Scrollable Content Body */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {errorMsg && (
+              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm font-semibold text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400">
+                ⚠ {errorMsg}
+              </div>
+            )}
+            {currentStep === 1 ? renderStep1() : renderStep2()}
+          </div>
 
-          {/* Footer */}
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+          {/* Footer - Fixed & Sticky at Bottom */}
+          <div className="flex justify-between items-center px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 shrink-0">
             <div>
               {currentStep === 2 && (
                 <button

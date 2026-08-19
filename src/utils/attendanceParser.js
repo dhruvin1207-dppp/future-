@@ -11,14 +11,27 @@ export const parseAttendanceByStudentId = (rows) => {
       if (!STUDENT_COLUMN_PATTERN.test(key.trim())) return;
       if (value === null || value === undefined || value === '') return;
 
+      const status = String(value).toLowerCase().trim();
+      if (
+        status === 'na' ||
+        status === 'n/a' ||
+        status === 'n.a' ||
+        status === 'n.a.' ||
+        status === 'na.' ||
+        status === '-' ||
+        status === '--' ||
+        status === 'not applicable'
+      ) {
+        return; // Skip NA values from total class count
+      }
+
       const id = normalizeStudentKey(key);
       if (!stats[id]) {
         stats[id] = { present: 0, total: 0, displayId: key.trim().replace(/\s+/g, '') };
       }
 
       stats[id].total += 1;
-      const status = String(value).toLowerCase();
-      if (status.includes('present')) stats[id].present += 1;
+      if (status.includes('present') || status === 'p') stats[id].present += 1;
     });
   });
 

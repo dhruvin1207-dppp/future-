@@ -197,6 +197,23 @@ export const fetchLiveAttendanceData = async (sheetName) => {
   }
 };
 
+// Helper: Check if status represents NA / Not Applicable / Empty
+const isNAStatus = (statusStr) => {
+  if (!statusStr) return true;
+  const s = String(statusStr).toLowerCase().trim();
+  return (
+    s === 'na' ||
+    s === 'n/a' ||
+    s === 'n.a' ||
+    s === 'n.a.' ||
+    s === 'na.' ||
+    s === '-' ||
+    s === '--' ||
+    s === 'not applicable' ||
+    s === 'none'
+  );
+};
+
 /**
  * Process raw Google Sheets attendance data
  * Extracts student attendance from the dynamic column structure
@@ -258,13 +275,16 @@ export const processAttendanceRows = (rows) => {
     // Extract attendance for each student
     studentColumns.forEach((student) => {
       const status = row[student.columnIndex] || '';
-      const isPresent = String(status).toLowerCase().trim() === 'present';
+      const normStatus = String(status).toLowerCase().trim();
+      const isPresent = normStatus === 'present' || normStatus === 'p';
+      const isNA = isNAStatus(status);
 
       attendanceRecord.attendanceByStudent.push({
         studentId: student.studentId,
         studentName: student.studentName,
         status: status,
         present: isPresent,
+        isNA: isNA,
       });
     });
 
@@ -294,14 +314,21 @@ export const getAttendanceSummaryByStudent = (processedRecords) => {
           percentage: 0,
         };
       }
-      summaryMap[key].totalCount += 1;
-      if (attendance.present) {
-        summaryMap[key].presentCount += 1;
+
+      // Option B: If status is NA / N/A, exclude from total class count
+      if (!attendance.isNA) {
+        summaryMap[key].totalCount += 1;
+        if (attendance.present) {
+          summaryMap[key].presentCount += 1;
+        }
       }
+
       if (summaryMap[key].totalCount > 0) {
         summaryMap[key].percentage = Math.round(
           (summaryMap[key].presentCount / summaryMap[key].totalCount) * 100
         );
+      } else {
+        summaryMap[key].percentage = 0;
       }
     });
   });
