@@ -92,23 +92,46 @@ export default function SectionTablePage({
 
   // Extract student options for marks filter
   const students = useMemo(() => {
-    if (dashboardData?.allStudents && dashboardData.allStudents.length > 0) {
-      return dashboardData.allStudents;
-    }
-    // Fallback: extract unique students from marks rows
     const rowsSrc = data?.rows || [];
-    const studentMap = new Map();
+    const studentMapFromRows = new Map();
     rowsSrc.forEach((row) => {
       const id = getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
-      const name = getRowField(row, 'name', 'studentName', 'student_name', 'Student Name');
+      const name = getRowField(row, 'name', 'studentName', 'student_name', 'Student Name', 'student_Name');
+      const surname = getRowField(row, 'surname', 'Surname');
       if (id) {
-        const normId = String(id).trim();
-        if (!studentMap.has(normId)) {
-          studentMap.set(normId, { studentId: normId, name: String(name).trim() });
+        const normId = normalizeStudentId(id);
+        let fullName = String(name || '').trim();
+        if (surname && !fullName.toLowerCase().includes(String(surname).toLowerCase().trim())) {
+          fullName = `${fullName} ${String(surname).trim()}`.trim();
+        }
+        if (fullName && !studentMapFromRows.has(normId)) {
+          studentMapFromRows.set(normId, { studentId: String(id).trim(), name: fullName });
         }
       }
     });
-    return Array.from(studentMap.values()).sort((a, b) => a.studentId.localeCompare(b.studentId, undefined, { numeric: true }));
+
+    if (dashboardData?.allStudents && dashboardData.allStudents.length > 0) {
+      return dashboardData.allStudents.map((s) => {
+        const normId = normalizeStudentId(s.studentId);
+        const rowInfo = studentMapFromRows.get(normId);
+        let finalName = s.name || '';
+        if (s.surname && !finalName.toLowerCase().includes(String(s.surname).toLowerCase().trim())) {
+          finalName = `${finalName} ${String(s.surname).trim()}`.trim();
+        }
+        if (rowInfo && rowInfo.name && rowInfo.name.length > finalName.length) {
+          finalName = rowInfo.name;
+        }
+        return {
+          ...s,
+          name: finalName,
+        };
+      });
+    }
+
+    // Fallback: extract unique students from marks rows
+    return Array.from(studentMapFromRows.values()).sort((a, b) =>
+      a.studentId.localeCompare(b.studentId, undefined, { numeric: true })
+    );
   }, [dashboardData?.allStudents, data?.rows]);
 
   const effectiveStudentId = useMemo(() => {
@@ -136,38 +159,9 @@ export default function SectionTablePage({
     if (section === 'marks') {
       if (effectiveStudentId) {
         const selNorm = normalizeStudentId(effectiveStudentId);
-        const targetStudent = students.find((s) => {
-          const sId = getRowField(s, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
-          return normalizeStudentId(sId) === selNorm;
-        });
-
-        const targetName = targetStudent
-          ? getRowField(targetStudent, 'name', 'studentName', 'student_name', 'Student Name', 'student_Name')
-          : '';
-        const targetNameNorm = String(targetName).trim().toLowerCase();
-        const targetFirstName = targetNameNorm.split(' ')[0];
-
         rowsFiltered = rowsSrc.filter((row) => {
           const rowId = getRowField(row, 'studentId', 'student_id', 'Student ID', 'Student id', 'roll_no', 'Roll No');
-          const rowName = getRowField(row, 'name', 'studentName', 'student_name', 'Student Name', 'student_Name');
-
-          // 1. Direct Student ID match (normalized)
-          if (rowId && normalizeStudentId(rowId) === selNorm) {
-            return true;
-          }
-
-          // 2. Student Name match (handles rows where name matches but student_id column has alternate ID)
-          if (rowName) {
-            const rowNameNorm = String(rowName).trim().toLowerCase();
-            if (targetNameNorm && (rowNameNorm.includes(targetNameNorm) || targetNameNorm.includes(rowNameNorm))) {
-              return true;
-            }
-            if (targetFirstName && targetFirstName.length > 2 && rowNameNorm.includes(targetFirstName)) {
-              return true;
-            }
-          }
-
-          return false;
+          return rowId && normalizeStudentId(rowId) === selNorm;
         });
       }
 

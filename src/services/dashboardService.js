@@ -36,15 +36,38 @@ const pick = (row, keys) => {
   return null;
 };
 
-const normalizeStudent = (row) => ({
-  id: row.id,
-  studentId: pick(row, ['student_id', 'Student ID', 'roll_no', 'Roll No']) || '—',
-  name: pick(row, ['student_name', 'Student Name', 'name', 'Name']) || 'Unknown',
-  className: pick(row, ['class', 'Class', 'course', 'Course']) || '—',
-  section: pick(row, ['section', 'Section']) || '—',
-  joiningDate: pick(row, ['Joining Date', 'joining_date', 'date_joined']) || '—',
-  active: pick(row, ['Active', 'active', 'is_active']) !== false,
-});
+const normalizeStudent = (row) => {
+  const studentId = pick(row, ['student_id', 'Student ID', 'roll_no', 'Roll No']) || '—';
+  const rawName = pick(row, ['student_name', 'Student Name', 'name', 'Name']) || '';
+  const fatherName = pick(row, ['father_name', 'Father Name', 'father name', 'fatherName']) || '';
+  const surname = pick(row, ['surname', 'Surname']) || '';
+
+  let fullName = String(rawName).trim();
+  const lowerFull = fullName.toLowerCase();
+  const lowerFather = String(fatherName).trim().toLowerCase();
+  const lowerSurname = String(surname).trim().toLowerCase();
+
+  if (lowerFather && !lowerFull.includes(lowerFather)) {
+    fullName = `${fullName} ${fatherName.trim()}`;
+  }
+  if (lowerSurname && !lowerFull.includes(lowerSurname)) {
+    fullName = `${fullName} ${surname.trim()}`;
+  }
+
+  if (!fullName) fullName = 'Unknown';
+
+  return {
+    id: row.id,
+    studentId,
+    name: fullName.trim(),
+    surname: surname ? surname.trim() : '',
+    fatherName: fatherName ? fatherName.trim() : '',
+    className: pick(row, ['class', 'Class', 'course', 'Course']) || '—',
+    section: pick(row, ['section', 'Section']) || '—',
+    joiningDate: pick(row, ['Joining Date', 'joining_date', 'date_joined']) || '—',
+    active: pick(row, ['Active', 'active', 'is_active']) !== false,
+  };
+};
 
 const aggregateFromTables = ({
   students = [],

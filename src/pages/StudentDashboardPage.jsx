@@ -52,12 +52,7 @@ export default function StudentDashboardPage({ data }) {
   // Filter attendance data for selected student
   const filteredAttendance = useMemo(() => {
     const match = charts.attendanceByStudent?.find(
-      (s) =>
-        normalizeStudentId(s.studentId) === normalizeStudentId(effectiveStudentId) ||
-        (selectedStudent?.name &&
-          s.studentName &&
-          (String(s.studentName).toLowerCase().includes(String(selectedStudent.name).toLowerCase().trim()) ||
-           String(selectedStudent.name).toLowerCase().includes(String(s.studentName).toLowerCase().trim())))
+      (s) => normalizeStudentId(s.studentId) === normalizeStudentId(effectiveStudentId)
     );
     if (match) {
       return {
@@ -94,16 +89,12 @@ export default function StudentDashboardPage({ data }) {
   const selectedStudentAvgMarks = useMemo(() => {
     if (!charts.marksRecords) return 0;
     const studentRecords = charts.marksRecords.filter(
-      (m) =>
-        normalizeStudentId(m.studentId) === normalizeStudentId(effectiveStudentId) ||
-        (selectedStudent?.name &&
-          m.studentName &&
-          String(m.studentName).toLowerCase().includes(String(selectedStudent.name).toLowerCase().trim()))
+      (m) => normalizeStudentId(m.studentId) === normalizeStudentId(effectiveStudentId)
     );
     if (studentRecords.length === 0) return 0;
     const avgPercent = studentRecords.reduce((acc, m) => acc + (m.percent || 0), 0) / studentRecords.length;
     return Math.round(avgPercent);
-  }, [effectiveStudentId, charts.marksRecords, selectedStudent]);
+  }, [effectiveStudentId, charts.marksRecords]);
 
   // Determine performance rating label and card accent
   const performanceRating = useMemo(() => {
