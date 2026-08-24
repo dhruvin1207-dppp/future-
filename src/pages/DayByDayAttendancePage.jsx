@@ -3,6 +3,44 @@ import { useLiveAttendance } from '../hooks/useLiveAttendance';
 import { getAvailableAttendanceSheets } from '../services/googleSheetsClient';
 import StudentIdFilter from '../components/ui/StudentIdFilter';
 
+const parseDateString = (dateStr) => {
+  if (!dateStr) return new Date(0);
+  const str = String(dateStr).trim();
+  const normalized = str.replace(/\//g, '-');
+  const parts = normalized.split('-');
+  if (parts.length === 3) {
+    let day, month, year;
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    } else {
+      // DD-MM-YYYY
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+      if (year < 100) {
+        year += 2000;
+      }
+    }
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) {
+      return d;
+    }
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? new Date(0) : d;
+};
+
+const formatDateToYYYYMMDD = (dateObj) => {
+  if (!dateObj || isNaN(dateObj.getTime()) || dateObj.getTime() === 0) return '';
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function DayByDayAttendancePage() {
   const {
     attendanceData,
@@ -18,6 +56,7 @@ export default function DayByDayAttendancePage() {
 
   // Filters State
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [subjectQuery, setSubjectQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'present' | 'absent' | 'other'
 
@@ -47,36 +86,6 @@ export default function DayByDayAttendancePage() {
         });
       });
     });
-
-    const parseDateString = (dateStr) => {
-      if (!dateStr) return new Date(0);
-      const str = String(dateStr).trim();
-      const normalized = str.replace(/\//g, '-');
-      const parts = normalized.split('-');
-      if (parts.length === 3) {
-        let day, month, year;
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD
-          year = parseInt(parts[0], 10);
-          month = parseInt(parts[1], 10) - 1;
-          day = parseInt(parts[2], 10);
-        } else {
-          // DD-MM-YYYY
-          day = parseInt(parts[0], 10);
-          month = parseInt(parts[1], 10) - 1;
-          year = parseInt(parts[2], 10);
-          if (year < 100) {
-            year += 2000;
-          }
-        }
-        const d = new Date(year, month, day);
-        if (!isNaN(d.getTime())) {
-          return d;
-        }
-      }
-      const d = new Date(str);
-      return isNaN(d.getTime()) ? new Date(0) : d;
-    };
 
     // Sort descending by date/time (latest first)
     return list.sort((a, b) => {
@@ -110,6 +119,14 @@ export default function DayByDayAttendancePage() {
         return false;
       }
 
+      // Date filter
+      if (dateFilter) {
+        const recordDateStr = formatDateToYYYYMMDD(parseDateString(r.date));
+        if (recordDateStr !== dateFilter) {
+          return false;
+        }
+      }
+
       // Subject filter
       if (subjectQuery) {
         const q = subjectQuery.toLowerCase().trim();
@@ -136,7 +153,7 @@ export default function DayByDayAttendancePage() {
 
       return true;
     });
-  }, [allRecords, selectedStudentId, subjectQuery, statusFilter]);
+  }, [allRecords, selectedStudentId, dateFilter, subjectQuery, statusFilter]);
 
   // Stats for the filtered selection
   const stats = useMemo(() => {
@@ -177,6 +194,11 @@ export default function DayByDayAttendancePage() {
     setCurrentPage(1);
   };
 
+  const handleDateChange = (e) => {
+    setDateFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
   const handleSubjectChange = (e) => {
     setSubjectQuery(e.target.value);
     setCurrentPage(1);
@@ -194,12 +216,13 @@ export default function DayByDayAttendancePage() {
 
   const clearFilters = () => {
     setSelectedStudentId('');
+    setDateFilter('');
     setSubjectQuery('');
     setStatusFilter('all');
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = selectedStudentId || subjectQuery || statusFilter !== 'all';
+  const hasActiveFilters = selectedStudentId || dateFilter || subjectQuery || statusFilter !== 'all';
 
   if (!isConfigured) {
     return (
@@ -239,7 +262,7 @@ export default function DayByDayAttendancePage() {
       {/* Filters Bar */}
       <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Filter Attendance</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {/* Class Select Dropdown (Sheet selector) */}
           {availableSheets.length > 1 && (
             <div className="flex flex-col gap-1.5">
@@ -269,6 +292,17 @@ export default function DayByDayAttendancePage() {
             students={uniqueStudents}
             layout="vertical"
           />
+
+          {/* Date Filter */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Filter by Date</label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={handleDateChange}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-850 dark:text-white dark:[color-scheme:dark]"
+            />
+          </div>
 
           {/* Subject Search */}
           <div className="flex flex-col gap-1.5">
