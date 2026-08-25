@@ -515,8 +515,8 @@ const formatDateToDDMMYYYY = (input) => {
     if (p2 > 12) {
       return `${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}-${year}`;
     }
-    const month = String(p1).padStart(2, '0');
-    const day = String(p2).padStart(2, '0');
+    const day = String(p1).padStart(2, '0');
+    const month = String(p2).padStart(2, '0');
     return `${day}-${month}-${year}`;
   }
   const dateObj = new Date(str);
