@@ -146,7 +146,7 @@ app.post('/api/students', async (req, res) => {
     // Fetch existing records to check for duplicates and get next ID
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:AZ2000`,
+      range: `${sheetName}!A:AZ`,
     });
 
     const rows = currentData.data.values || [];
@@ -212,7 +212,7 @@ app.put('/api/students/:studentId', async (req, res) => {
     // Fetch existing records to locate the correct row
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:AZ2000`,
+      range: `${sheetName}!A:AZ`,
     });
 
     const rows = currentData.data.values || [];
@@ -276,7 +276,7 @@ app.delete('/api/students/:studentId', async (req, res) => {
     // Fetch existing records to locate their rows
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:AZ2000`,
+      range: `${sheetName}!A:AZ`,
     });
 
     const rows = currentData.data.values || [];
@@ -563,7 +563,7 @@ app.post('/api/exam', async (req, res) => {
 
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!B1:B3000`,
+      range: `${sheetName}!B:B`,
     });
     const currentRows = currentData.data.values || [];
     const nextRowNumber = currentRows.length + 1;
@@ -727,7 +727,7 @@ app.post('/api/marks', async (req, res) => {
 
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!B1:B3000`,
+      range: `${sheetName}!B:B`,
     });
     const currentRows = currentData.data.values || [];
     const nextRowNumber = currentRows.length + 1;
@@ -882,7 +882,7 @@ app.post('/api/activeSession', async (req, res) => {
 
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!B1:B3000`,
+      range: `${sheetName}!B:B`,
     });
     const currentRows = currentData.data.values || [];
     const nextRowNumber = currentRows.length + 1;
@@ -1340,7 +1340,7 @@ app.post('/api/teachers', async (req, res) => {
     // Get current rows
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:Z1000`,
+      range: `${sheetName}!A:Z`,
     });
     const currentRows = currentData.data.values || [];
 
@@ -1477,7 +1477,7 @@ app.post('/api/inquiry', async (req, res) => {
 
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:Z2000`,
+      range: `${sheetName}!A:Z`,
     });
     const currentRows = currentData.data.values || [];
     const nextRowNumber = currentRows.length + 1;
@@ -1594,7 +1594,7 @@ app.post('/api/reception', async (req, res) => {
     // Get current rows to check existing IDs
     const currentData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:Z2000`,
+      range: `${sheetName}!A:Z`,
     });
     const currentRows = currentData.data.values || [];
 
