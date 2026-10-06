@@ -12,6 +12,8 @@ import {
 } from './googleSheetsClient';
 import { normalizeStudentId } from '../utils/studentId';
 import * as XLSX from 'xlsx';
+import { fetchSectionData } from './sectionService';
+import { fetchTaskData } from './taskManagementService';
 
 const pick = (row, keys) => {
   if (!row) return null;
@@ -548,4 +550,158 @@ export const formatLiveAttendanceForDashboard = (summaryByStudent) => {
     attendancePercentage: overallPercentage,
     attendanceByStudent,
   };
+};
+
+export const exportTabData = async (activePage, dashboardData) => {
+  const dateStr = new Date().toISOString().slice(0, 10);
+
+  const downloadCsv = (filename, headers, rows) => {
+    if (!rows || rows.length === 0) {
+      alert(`No data available to export for ${activePage}.`);
+      return;
+    }
+    const csvLines = [
+      headers.map((h) => `"${String(h ?? '').replace(/"/g, '""')}"`).join(','),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')
+      ),
+    ];
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportObjectsToCsv = (filename, objects) => {
+    if (!objects || objects.length === 0) {
+      alert(`No data available to export for ${activePage}.`);
+      return;
+    }
+    const internalKeys = new Set(['id', 'rowIndex']);
+    const allKeys = [...new Set(objects.flatMap((obj) => Object.keys(obj)))].filter(
+      (k) => !internalKeys.has(k)
+    );
+
+    const headers = allKeys.map((k) =>
+      k
+        .replace(/_/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim()
+    );
+    const rows = objects.map((obj) => allKeys.map((k) => obj[k] ?? ''));
+    downloadCsv(filename, headers, rows);
+  };
+
+  try {
+    if (activePage === 'students') {
+      let studentList = dashboardData?.allStudents || [];
+      if (!studentList.length) {
+        const secRes = await fetchSectionData('students');
+        if (secRes.rows && secRes.rows.length) {
+          exportObjectsToCsv(`students-report-${dateStr}.csv`, secRes.rows);
+          return;
+        }
+      }
+      if (studentList.length > 0) {
+        const headers = ['Student ID', 'Name', 'Surname', 'Father Name', 'Class', 'Section', 'Joining Date', 'Status'];
+        const rows = studentList.map((s) => [
+          s.studentId,
+          s.name,
+          s.surname || '',
+          s.fatherName || '',
+          s.className || '',
+          s.section || '',
+          s.joiningDate || '',
+          s.active !== false ? 'Active' : 'Inactive',
+        ]);
+        downloadCsv(`students-report-${dateStr}.csv`, headers, rows);
+      } else {
+        alert('No student data available to export.');
+      }
+    } else if (activePage === 'marks') {
+      exportMarksToExcel(dashboardData || {});
+    } else if (activePage === 'attendance') {
+      try {
+        const liveAtt = await fetchLiveAttendanceFromSheets();
+        const summary = liveAtt.summaryByStudent || [];
+        if (summary.length > 0) {
+          const headers = ['Student ID', 'Student Name', 'Present Count', 'Total Classes', 'Attendance Percentage'];
+          const rows = summary.map((s) => [
+            s.studentId,
+            s.studentName,
+            s.presentCount,
+            s.totalCount,
+            `${s.percentage}%`,
+          ]);
+          downloadCsv(`attendance-summary-${dateStr}.csv`, headers, rows);
+          return;
+        }
+      } catch (e) {
+        console.warn('Live attendance export fallback:', e);
+      }
+
+      const attChart = dashboardData?.charts?.attendanceByStudent || [];
+      if (attChart.length > 0) {
+        const headers = ['Student ID', 'Attendance Percentage', 'Present Count', 'Total Classes'];
+        const rows = attChart.map((s) => [s.studentId, `${s.value}%`, s.present || 0, s.total || 0]);
+        downloadCsv(`attendance-summary-${dateStr}.csv`, headers, rows);
+      } else {
+        alert('No attendance summary data available to export.');
+      }
+    } else if (activePage === 'dayByDayAttendance') {
+      try {
+        const liveAtt = await fetchLiveAttendanceFromSheets();
+        const raw = liveAtt.rawRecords || [];
+        const flatList = [];
+        raw.forEach((rec) => {
+          rec.attendanceByStudent?.forEach((st) => {
+            flatList.push([
+              rec.timestamp || '',
+              rec.lectureTime || '',
+              rec.subject || '',
+              st.studentId || '',
+              st.studentName || '',
+              st.status || (st.present ? 'Present' : 'Absent'),
+            ]);
+          });
+        });
+        if (flatList.length > 0) {
+          const headers = ['Date', 'Lecture Time', 'Subject', 'Student ID', 'Student Name', 'Status'];
+          downloadCsv(`day-by-day-attendance-${dateStr}.csv`, headers, flatList);
+          return;
+        }
+      } catch (e) {
+        console.warn('Day-by-day attendance export failed:', e);
+      }
+      alert('No day-by-day attendance data available to export.');
+    } else if (activePage === 'tasks') {
+      try {
+        const taskRes = await fetchTaskData();
+        const tasks = taskRes.processed || [];
+        if (tasks.length > 0) {
+          const headers = ['Task Name', 'Assignee ID', 'Due Date', 'Priority', 'Status'];
+          const rows = tasks.map((t) => [t.name, t.assigneeId, t.dueDate, t.priority, t.rawStatus || t.status]);
+          downloadCsv(`tasks-report-${dateStr}.csv`, headers, rows);
+          return;
+        }
+      } catch (e) {
+        console.warn('Task data export failed:', e);
+      }
+      alert('No task data available to export.');
+    } else {
+      const secRes = await fetchSectionData(activePage);
+      if (secRes.rows && secRes.rows.length > 0) {
+        exportObjectsToCsv(`${activePage}-report-${dateStr}.csv`, secRes.rows);
+      } else {
+        alert(`No data available to export for ${activePage}.`);
+      }
+    }
+  } catch (err) {
+    console.error(`Export failed for page ${activePage}:`, err);
+    alert(`Failed to export data for ${activePage}. Please try again.`);
+  }
 };

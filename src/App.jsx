@@ -3,7 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './components/auth/LoginPage';
 import { useDashboardData } from './hooks/useDashboardData';
-import { exportReportCsv, exportMarksToExcel } from './services/dashboardService';
+import { exportReportCsv, exportMarksToExcel, exportTabData } from './services/dashboardService';
 import { clearSheetCache } from './services/googleSheetsClient';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -79,12 +79,7 @@ function AppContent() {
   const pageMeta = pageTitles[activePage] || pageTitles.dashboard;
 
   const handleExport = () => {
-    if (!data) return;
-    if (activePage === 'marks') {
-      exportMarksToExcel(data);
-    } else {
-      exportReportCsv(data);
-    }
+    exportTabData(activePage, data);
   };
 
   const handleNavigate = (page) => {

@@ -33,6 +33,12 @@ export default function Header({
     activePage === 'newStudentInquiry' ||
     activePage === 'reception';
 
+  const hideExport =
+    activePage === 'dashboard' ||
+    activePage === 'studentDashboard' ||
+    activePage === 'dayByDayAttendance' ||
+    activePage === 'marks';
+
   const addLabel =
     activePage === 'students'
       ? 'Add Student'
@@ -118,13 +124,15 @@ export default function Header({
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={onExport}
-            className="hidden rounded-lg border border-brand-blue/30 bg-brand-blue/5 px-3 py-2 text-xs font-medium text-brand-blue transition hover:bg-brand-blue/10 dark:border-brand-purple/40 dark:bg-brand-purple/10 dark:text-brand-purple-light sm:block sm:text-sm"
-          >
-            Export
-          </button>
+          {!hideExport && (
+            <button
+              type="button"
+              onClick={onExport}
+              className="hidden rounded-lg border border-brand-blue/30 bg-brand-blue/5 px-3 py-2 text-xs font-medium text-brand-blue transition hover:bg-brand-blue/10 dark:border-brand-purple/40 dark:bg-brand-purple/10 dark:text-brand-purple-light sm:block sm:text-sm"
+            >
+              Export
+            </button>
+          )}
           <button
             type="button"
             onClick={toggleDarkMode}
@@ -187,13 +195,15 @@ export default function Header({
           </button>
 
           {/* Export — mobile only in this row */}
-          <button
-            type="button"
-            onClick={onExport}
-            className="inline-flex items-center justify-center rounded-lg border border-brand-blue/30 bg-brand-blue/5 px-3 py-2 text-xs font-medium text-brand-blue transition hover:bg-brand-blue/10 dark:border-brand-purple/40 dark:bg-brand-purple/10 dark:text-brand-purple-light sm:hidden"
-          >
-            ↓
-          </button>
+          {!hideExport && (
+            <button
+              type="button"
+              onClick={onExport}
+              className="inline-flex items-center justify-center rounded-lg border border-brand-blue/30 bg-brand-blue/5 px-3 py-2 text-xs font-medium text-brand-blue transition hover:bg-brand-blue/10 dark:border-brand-purple/40 dark:bg-brand-purple/10 dark:text-brand-purple-light sm:hidden"
+            >
+              ↓
+            </button>
+          )}
         </div>
       )}
     </header>
