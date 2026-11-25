@@ -1,7 +1,7 @@
 const labels = {
   students: 'Students',
   courses: 'Courses',
-  teachers: 'Teachers',
+  teachers: 'Teacher and Reception',
   attendance: 'Attendance',
   fees: 'Fees',
   exams: 'Exams',

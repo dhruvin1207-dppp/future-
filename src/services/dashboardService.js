@@ -683,8 +683,8 @@ export const exportTabData = async (activePage, dashboardData) => {
         const taskRes = await fetchTaskData();
         const tasks = taskRes.processed || [];
         if (tasks.length > 0) {
-          const headers = ['Task Name', 'Assignee ID', 'Due Date', 'Priority', 'Status'];
-          const rows = tasks.map((t) => [t.name, t.assigneeId, t.dueDate, t.priority, t.rawStatus || t.status]);
+          const headers = ['Task Name', 'Assignee ID', 'Due Date', 'Due Time', 'Priority', 'Status'];
+          const rows = tasks.map((t) => [t.name, t.assigneeId, t.dueDate, t.dueTime, t.priority, t.rawStatus || t.status]);
           downloadCsv(`tasks-report-${dateStr}.csv`, headers, rows);
           return;
         }

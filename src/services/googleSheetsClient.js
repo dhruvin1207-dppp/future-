@@ -59,7 +59,7 @@ export const convertSheetRowsToObjects = (rows) => {
         else if (valUpper === 'FALSE') val = false;
         else val = valTrim;
       }
-      if (header) {
+      if (header && header !== 'id') {
         obj[header] = val;
       }
     });

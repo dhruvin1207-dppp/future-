@@ -30,8 +30,7 @@ export default function Header({
     activePage === 'fees' ||
     activePage === 'marks' ||
     activePage === 'teachers' ||
-    activePage === 'newStudentInquiry' ||
-    activePage === 'reception';
+    activePage === 'newStudentInquiry';
 
   const hideExport =
     activePage === 'dashboard' ||
@@ -54,8 +53,6 @@ export default function Header({
       ? 'Add Teacher'
       : activePage === 'newStudentInquiry'
       ? 'Add Inquiry'
-      : activePage === 'reception'
-      ? 'Add Reception'
       : 'Add Entry';
 
   return (

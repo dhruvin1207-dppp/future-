@@ -8,7 +8,7 @@ export const isTaskSheetConfigured = () => Boolean(taskSheetConfig.taskSheetName
 
 /**
  * Parse task rows from Google Sheets
- * Columns: task, assign task id, due date, priority tag, status
+ * Columns: task, assign task id, due date, due time, priority tag, status
  * @param {Array<Array>} rows - Raw rows from Google Sheets
  * @returns {Array<Object>} Processed task records
  */
@@ -20,7 +20,12 @@ export const parseTaskRows = (rows) => {
   // Find column indices
   const taskIdx = headers.findIndex((h) => h.includes('task'));
   const assignIdx = headers.findIndex((h) => h.includes('assign'));
-  const dueDateIdx = headers.findIndex((h) => h.includes('due'));
+  const dueDateIdx = headers.findIndex((h) => h.includes('due') && h.includes('date')) >= 0
+    ? headers.findIndex((h) => h.includes('due') && h.includes('date'))
+    : headers.findIndex((h) => h.includes('due') && !h.includes('time'));
+  const dueTimeIdx = headers.findIndex((h) => h.includes('due') && h.includes('time')) >= 0
+    ? headers.findIndex((h) => h.includes('due') && h.includes('time'))
+    : headers.findIndex((h) => h === 'time');
   const priorityIdx = headers.findIndex((h) => h.includes('priority'));
   const statusIdx = headers.findIndex((h) => h.includes('status'));
 
@@ -38,6 +43,7 @@ export const parseTaskRows = (rows) => {
       name: taskName || 'Untitled',
       assigneeId: assignIdx >= 0 ? row[assignIdx] : '',
       dueDate: dueDateIdx >= 0 ? row[dueDateIdx] : '',
+      dueTime: dueTimeIdx >= 0 ? (row[dueTimeIdx] || '') : '',
       priority: priorityIdx >= 0 ? (row[priorityIdx] || 'Normal').toLowerCase() : 'normal',
       status: statusIdx >= 0 ? (row[statusIdx] || 'Pending').toLowerCase() : 'pending',
       rawStatus: statusIdx >= 0 ? row[statusIdx] : 'Pending',

@@ -31,10 +31,20 @@ const EMPTY_FORM = {
   amount4: '',
 };
 
+const INACTIVE_TX_REGEX = /\b(failed|fail|cancelled|canceled|cancel|pending|bounced|rejected|reversed)\b/i;
+
+const INSTALLMENT_FIELDS = [
+  { num: 1, dateKey: 'date', amountKey: 'amount1', detailsKey: 'details1', refKey: 'ref1' },
+  { num: 2, dateKey: 'date2', amountKey: 'amount2', detailsKey: 'details2', refKey: 'ref2' },
+  { num: 3, dateKey: 'date3', amountKey: 'amount3', detailsKey: 'details3', refKey: 'ref3' },
+  { num: 4, dateKey: 'date4', amountKey: 'amount4', detailsKey: 'details4', refKey: 'ref4' },
+];
+
 /** Resolve a field from multiple possible key names */
 const pick = (obj, ...keys) => {
+  if (!obj) return '';
   for (const k of keys) {
-    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return obj[k];
+    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return String(obj[k]).trim();
   }
   return '';
 };
@@ -54,6 +64,130 @@ const resilientPick = (obj, ...keys) => {
   return '';
 };
 
+const toDateInputValue = (val) => {
+  const str = String(val ?? '').trim();
+  if (!str) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const dmy = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  }
+  return '';
+};
+
+const toNumber = (val) => {
+  if (val === '' || val === null || val === undefined) return 0;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : NaN;
+};
+
+const buildStudentFullName = (s) => {
+  const first = String(resilientPick(s, 'student_name', 'student_NAme', 'Student Name', 'name', 'Name') || '').trim();
+  const father = String(resilientPick(s, 'father_name', 'father name', 'father NAme', 'Father Name', 'fatherName') || '').trim();
+  const surname = String(resilientPick(s, 'surname', 'Surname', 'SurNAme') || '').trim();
+
+  const parts = [];
+  if (first) parts.push(first);
+  if (father && !first.toLowerCase().includes(father.toLowerCase())) parts.push(father);
+  if (surname && !first.toLowerCase().includes(surname.toLowerCase())) parts.push(surname);
+  return parts.join(' ').trim();
+};
+
+export const isNonSuccessfulInstallment = (details, ref) => {
+  const text = `${details || ''} ${ref || ''}`.trim();
+  return text ? INACTIVE_TX_REGEX.test(text) : false;
+};
+
+export const computeFeeSummary = (data, useInstallmentSum) => {
+  const hasGross = String(data.totalGrossFee ?? '').trim() !== '';
+  const hasDisc = String(data.discount ?? '').trim() !== '';
+  const grossRaw = toNumber(data.totalGrossFee);
+  const discRaw = toNumber(data.discount);
+  const gross = Number.isFinite(grossRaw) ? grossRaw : 0;
+  const disc = Number.isFinite(discRaw) ? discRaw : 0;
+
+  const totalNetFee = (hasGross || hasDisc)
+    ? Math.max(0, gross - disc)
+    : (Number.isFinite(toNumber(data.totalNetFee)) ? Math.max(0, toNumber(data.totalNetFee)) : 0);
+
+  let installmentSum = 0;
+  const excludedInstallments = [];
+  let hasPositiveInstallment = false;
+
+  INSTALLMENT_FIELDS.forEach(({ num, amountKey, detailsKey, refKey }) => {
+    const rawAmt = String(data[amountKey] ?? '').trim();
+    const amt = toNumber(rawAmt);
+    if (rawAmt !== '' && Number.isFinite(amt) && amt > 0) {
+      if (isNonSuccessfulInstallment(data[detailsKey], data[refKey])) {
+        excludedInstallments.push(num);
+      } else {
+        installmentSum += amt;
+        hasPositiveInstallment = true;
+      }
+    }
+  });
+
+  const manualPaid = toNumber(data.paidFee);
+  const paidFee = (useInstallmentSum || hasPositiveInstallment || excludedInstallments.length > 0)
+    ? installmentSum
+    : (Number.isFinite(manualPaid) ? manualPaid : 0);
+
+  const rawPending = totalNetFee - paidFee;
+  const pendingFee = rawPending >= 0 ? rawPending : 0;
+
+  let status = 'Unpaid';
+  if (paidFee > totalNetFee && (totalNetFee > 0 || hasGross || paidFee > 0)) {
+    status = 'Overpaid';
+  } else if (paidFee <= 0) {
+    status = 'Unpaid';
+  } else if (paidFee < totalNetFee) {
+    status = 'Partial Paid';
+  } else {
+    status = 'Fully Paid';
+  }
+
+  return {
+    totalNetFee,
+    paidFee,
+    pendingFee,
+    rawPending,
+    status,
+    excludedInstallments,
+    hasInstallmentDrivenPaid: useInstallmentSum || hasPositiveInstallment || excludedInstallments.length > 0,
+  };
+};
+
+const buildInitialForm = (mode, feesData) => {
+  if (mode === 'edit' && feesData) {
+    return {
+      studentId: pick(feesData, 'Student_ID', 'student_id', 'Student ID'),
+      name: pick(feesData, 'NAME', 'name', 'Name'),
+      totalGrossFee: pick(feesData, 'TOTAL GROSS FEE', 'total_gross_fee', 'Total Gross Fee'),
+      discount: pick(feesData, 'DISCOUNT', 'discount'),
+      totalNetFee: pick(feesData, 'TOTAL NET FEE', 'total_net_fee', 'Total Net Fee'),
+      paidFee: pick(feesData, 'PAID FEE', 'paid_fee', 'Paid Fee'),
+      pendingFee: pick(feesData, 'PENDING FEE', 'pending_fee', 'Pending Fee'),
+      date: toDateInputValue(pick(feesData, 'date', 'Date', 'DATE')),
+      details1: pick(feesData, 'detials1', 'details1', 'DETIALS1', 'Details1'),
+      ref1: pick(feesData, 'ref1', 'REF1', 'Ref1'),
+      amount1: pick(feesData, 'amount1', 'AMOUNT1', 'Amount1'),
+      date2: toDateInputValue(pick(feesData, 'date2', 'Date2', 'DATE2')),
+      details2: pick(feesData, 'detials2', 'details2', 'DETIALS2'),
+      ref2: pick(feesData, 'ref2', 'REF2'),
+      amount2: pick(feesData, 'amount2', 'AMOUNT2'),
+      date3: toDateInputValue(pick(feesData, 'date3', 'Date3', 'DATE3')),
+      details3: pick(feesData, 'detials3', 'details3', 'DETIALS3'),
+      ref3: pick(feesData, 'ref3', 'REF3'),
+      amount3: pick(feesData, 'amount3', 'AMOUNT3'),
+      date4: toDateInputValue(pick(feesData, 'date4', 'Date4', 'DATE4')),
+      details4: pick(feesData, 'detials4', 'details4', 'DETIALS4'),
+      ref4: pick(feesData, 'ref4', 'REF4'),
+      amount4: pick(feesData, 'amount4', 'AMOUNT4'),
+    };
+  }
+  return { ...EMPTY_FORM };
+};
+
 export default function FeesModals({
   isOpen,
   mode,
@@ -62,18 +196,26 @@ export default function FeesModals({
   onSave,
   loading,
 }) {
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const initialForm = useMemo(() => (isOpen ? buildInitialForm(mode, feesData) : EMPTY_FORM), [isOpen, mode, feesData]);
+  const [formData, setFormData] = useState(initialForm);
+  const [installmentsTouched, setInstallmentsTouched] = useState(() =>
+    [initialForm.amount1, initialForm.amount2, initialForm.amount3, initialForm.amount4].some(
+      (v) => (parseFloat(v) || 0) > 0
+    )
+  );
+  const [validationError, setValidationError] = useState('');
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
-  const initialValuesRef = useRef({
-    paidFee: 0,
-    amount1: 0,
-    amount2: 0,
-    amount3: 0,
-    amount4: 0,
-  });
+  const originalStudentIdRef = useRef(initialForm.studentId);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    if (!loading) {
+      submittingRef.current = false;
+    }
+  }, [loading]);
 
   // Fetch students list once the modal is open
   useEffect(() => {
@@ -105,15 +247,15 @@ export default function FeesModals({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Normalize student objects using resilientPick
+  // Normalize student objects using resilientPick and full name construction
   const normalizedStudents = useMemo(() => {
     return students.map((s) => {
-      const studentId = resilientPick(s, 'student_id', 'Student ID', 'studentId', 'roll_no', 'Roll No') || '';
-      const name = resilientPick(s, 'student_name', 'Student Name', 'name', 'Name') || '';
-      const rollNumber = resilientPick(s, 'roll_number', 'Roll Number', 'rollNumber', 'roll_no', 'Roll No') || '';
-      const phone = resilientPick(s, 'student_phone', 'Student_Phone', 'parent_phone', 'Parent_Phone', 'mobileNumber', 'mobile_number', 'Mobile Number', 'parentMobile') || '';
+      const studentId = String(resilientPick(s, 'student_id', 'Student ID', 'studentId', 'roll_no', 'Roll No') || '').trim();
+      const name = buildStudentFullName(s);
+      const rollNumber = String(resilientPick(s, 'roll_number', 'Roll Number', 'rollNumber', 'roll_no', 'Roll No') || '').trim();
+      const phone = String(resilientPick(s, 'student_phone', 'Student_Phone', 'parent_phone', 'Parent_Phone', 'mobileNumber', 'mobile_number', 'Mobile Number', 'parentMobile') || '').trim();
       const active = resilientPick(s, 'active', 'Active', 'is_active') !== false && String(resilientPick(s, 'status', 'Status')).toLowerCase() !== 'inactive';
-      
+
       return { studentId, name, rollNumber, phone, active };
     }).filter(s => s.studentId);
   }, [students]);
@@ -136,16 +278,29 @@ export default function FeesModals({
       .slice(0, 50);
   }, [normalizedStudents, formData.studentId]);
 
-  // Auto-fill student name if the entered studentId exactly matches an existing student
+  // Auto-fill full student name when adding a student or when studentId is changed/name is blank
   useEffect(() => {
-    if (!formData.studentId) return;
+    if (!isOpen || !formData.studentId) return;
     const match = normalizedStudents.find(
-      (s) => s.studentId.toLowerCase() === formData.studentId.toLowerCase()
+      (s) => s.studentId.toLowerCase() === formData.studentId.trim().toLowerCase()
     );
-    if (match && formData.name !== match.name) {
+    if (!match || !match.name) return;
+
+    const isSameOriginalEditRecord =
+      mode === 'edit' &&
+      originalStudentIdRef.current &&
+      formData.studentId.trim().toLowerCase() === originalStudentIdRef.current.trim().toLowerCase();
+
+    const currentName = String(formData.name || '').trim();
+    const shouldFill =
+      mode === 'add' ||
+      !isSameOriginalEditRecord ||
+      !currentName;
+
+    if (shouldFill && currentName !== match.name) {
       setFormData((prev) => ({ ...prev, name: match.name }));
     }
-  }, [formData.studentId, normalizedStudents]);
+  }, [isOpen, mode, formData.studentId, formData.name, normalizedStudents]);
 
   const handleSelectStudent = (student) => {
     setFormData((prev) => ({
@@ -154,109 +309,29 @@ export default function FeesModals({
       name: student.name,
     }));
     setShowDropdown(false);
+    setValidationError('');
   };
 
-
   useEffect(() => {
+    setValidationError('');
     if (isOpen) {
-      if (mode === 'edit' && feesData) {
-        const loadedPaidFee = parseFloat(pick(feesData, 'PAID FEE', 'paid_fee', 'Paid Fee')) || 0;
-        const loadedAmt1 = parseFloat(pick(feesData, 'amount1', 'AMOUNT1', 'Amount1')) || 0;
-        const loadedAmt2 = parseFloat(pick(feesData, 'amount2', 'AMOUNT2')) || 0;
-        const loadedAmt3 = parseFloat(pick(feesData, 'amount3', 'AMOUNT3')) || 0;
-        const loadedAmt4 = parseFloat(pick(feesData, 'amount4', 'AMOUNT4')) || 0;
-
-        initialValuesRef.current = {
-          paidFee: loadedPaidFee,
-          amount1: loadedAmt1,
-          amount2: loadedAmt2,
-          amount3: loadedAmt3,
-          amount4: loadedAmt4,
-        };
-
-        setFormData({
-          studentId:    pick(feesData, 'Student_ID', 'student_id', 'Student ID'),
-          name:         pick(feesData, 'name', 'Name'),
-          totalGrossFee: pick(feesData, 'TOTAL GROSS FEE', 'total_gross_fee', 'Total Gross Fee'),
-          discount:     pick(feesData, 'DISCOUNT', 'discount'),
-          totalNetFee:  pick(feesData, 'TOTAL NET FEE', 'total_net_fee', 'Total Net Fee'),
-          paidFee:      pick(feesData, 'PAID FEE', 'paid_fee', 'Paid Fee'),
-          pendingFee:   pick(feesData, 'PENDING FEE', 'pending_fee', 'Pending Fee'),
-          date:         pick(feesData, 'date', 'Date', 'DATE'),
-          details1:     pick(feesData, 'detials1', 'details1', 'DETIALS1', 'Details1'),
-          ref1:         pick(feesData, 'ref1', 'REF1', 'Ref1'),
-          amount1:      pick(feesData, 'amount1', 'AMOUNT1', 'Amount1'),
-          date2:        pick(feesData, 'date2', 'Date2', 'DATE2'),
-          details2:     pick(feesData, 'detials2', 'details2', 'DETIALS2'),
-          ref2:         pick(feesData, 'ref2', 'REF2'),
-          amount2:      pick(feesData, 'amount2', 'AMOUNT2'),
-          date3:        pick(feesData, 'date3', 'Date3', 'DATE3'),
-          details3:     pick(feesData, 'detials3', 'details3', 'DETIALS3'),
-          ref3:         pick(feesData, 'ref3', 'REF3'),
-          amount3:      pick(feesData, 'amount3', 'AMOUNT3'),
-          date4:        pick(feesData, 'date4', 'Date4', 'DATE4'),
-          details4:     pick(feesData, 'detials4', 'details4', 'DETIALS4'),
-          ref4:         pick(feesData, 'ref4', 'REF4'),
-          amount4:      pick(feesData, 'amount4', 'AMOUNT4'),
-        });
-      } else {
-        initialValuesRef.current = {
-          paidFee: 0,
-          amount1: 0,
-          amount2: 0,
-          amount3: 0,
-          amount4: 0,
-        };
-        setFormData(EMPTY_FORM);
-      }
+      const next = buildInitialForm(mode, feesData);
+      originalStudentIdRef.current = next.studentId;
+      setFormData(next);
+      setInstallmentsTouched(
+        [next.amount1, next.amount2, next.amount3, next.amount4].some((v) => (parseFloat(v) || 0) > 0)
+      );
+    } else {
+      originalStudentIdRef.current = '';
+      setFormData(EMPTY_FORM);
+      setInstallmentsTouched(false);
     }
   }, [isOpen, mode, feesData]);
 
-  const hasInstallments = Boolean(
-    formData.amount1 ||
-    formData.amount2 ||
-    formData.amount3 ||
-    formData.amount4
+  const summary = useMemo(
+    () => computeFeeSummary(formData, installmentsTouched),
+    [formData, installmentsTouched]
   );
-
-  // Auto-calculate Paid Fee based on installment changes relative to initial values
-  useEffect(() => {
-    if (hasInstallments) {
-      const amt1 = parseFloat(formData.amount1) || 0;
-      const amt2 = parseFloat(formData.amount2) || 0;
-      const amt3 = parseFloat(formData.amount3) || 0;
-      const amt4 = parseFloat(formData.amount4) || 0;
-
-      const init = initialValuesRef.current;
-      const delta1 = amt1 - init.amount1;
-      const delta2 = amt2 - init.amount2;
-      const delta3 = amt3 - init.amount3;
-      const delta4 = amt4 - init.amount4;
-
-      const calculatedPaidFee = init.paidFee + delta1 + delta2 + delta3 + delta4;
-
-      setFormData(prev => {
-        const nextPaidFee = String(calculatedPaidFee >= 0 ? calculatedPaidFee : 0);
-        if (prev.paidFee === nextPaidFee) return prev;
-        return { ...prev, paidFee: nextPaidFee };
-      });
-    }
-  }, [formData.amount1, formData.amount2, formData.amount3, formData.amount4, hasInstallments]);
-
-  // Auto-calculate derived fields whenever gross fee, discount or paid fee changes
-  useEffect(() => {
-    const gross   = parseFloat(formData.totalGrossFee) || 0;
-    const disc    = parseFloat(formData.discount)      || 0;
-    const netFee  = gross - disc;
-    const paid    = parseFloat(formData.paidFee)       || 0;
-    const pending = netFee - paid;
-
-    setFormData(prev => ({
-      ...prev,
-      totalNetFee: (gross || disc) ? String(netFee  >= 0 ? netFee  : 0) : prev.totalNetFee,
-      pendingFee:  (paid  || netFee) ? String(pending >= 0 ? pending : 0) : prev.pendingFee,
-    }));
-  }, [formData.totalGrossFee, formData.discount, formData.paidFee]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Escape key to close
   useEffect(() => {
@@ -269,12 +344,93 @@ export default function FeesModals({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setValidationError('');
+    if (['amount1', 'amount2', 'amount3', 'amount4'].includes(name)) {
+      setInstallmentsTouched(true);
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validateBeforeSave = () => {
+    const grossVal = String(formData.totalGrossFee ?? '').trim();
+    const discVal = String(formData.discount ?? '').trim();
+    const gross = toNumber(grossVal);
+    const disc = toNumber(discVal);
+
+    if (grossVal !== '' && (!Number.isFinite(gross) || gross < 0)) {
+      return 'Total Gross Fee must be a valid non-negative number.';
+    }
+    if (discVal !== '' && (!Number.isFinite(disc) || disc < 0)) {
+      return 'Discount must be a valid non-negative number.';
+    }
+    if (grossVal !== '' && discVal !== '' && disc > gross) {
+      return 'Discount cannot exceed Total Gross Fee.';
+    }
+
+    const seenRefs = new Map();
+    for (const { num, amountKey, refKey } of INSTALLMENT_FIELDS) {
+      const rawAmt = String(formData[amountKey] ?? '').trim();
+      if (rawAmt !== '') {
+        const amt = toNumber(rawAmt);
+        if (!Number.isFinite(amt) || amt < 0) {
+          return `Installment ${num} amount must be a valid non-negative number.`;
+        }
+      }
+      const ref = String(formData[refKey] ?? '').trim();
+      if (ref) {
+        const normRef = ref.toLowerCase();
+        if (seenRefs.has(normRef)) {
+          return `Duplicate Reference No. "${ref}" found in Installment ${seenRefs.get(normRef)} and Installment ${num}.`;
+        }
+        seenRefs.set(normRef, num);
+      }
+    }
+
+    const paidRaw = String(formData.paidFee ?? '').trim();
+    if (!summary.hasInstallmentDrivenPaid && paidRaw !== '') {
+      const manualPaid = toNumber(paidRaw);
+      if (!Number.isFinite(manualPaid) || manualPaid < 0) {
+        return 'Paid Fee must be a valid non-negative number.';
+      }
+    }
+
+    if (summary.paidFee < 0) {
+      return 'Paid Fee cannot be negative.';
+    }
+
+    if (summary.paidFee > summary.totalNetFee && (summary.totalNetFee > 0 || grossVal !== '' || summary.paidFee > 0)) {
+      return `Paid Fee (₹${summary.paidFee.toLocaleString('en-IN')}) cannot exceed Total Net Fee (₹${summary.totalNetFee.toLocaleString('en-IN')}).`;
+    }
+
+    return '';
   };
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    onSave(formData); // no mandatory validation — all fields optional
+    if (mode === 'delete') {
+      if (loading || submittingRef.current) return;
+      submittingRef.current = true;
+      onSave(formData);
+      return;
+    }
+
+    if (loading || submittingRef.current) return;
+
+    const err = validateBeforeSave();
+    if (err) {
+      setValidationError(err);
+      return;
+    }
+
+    submittingRef.current = true;
+    onSave({
+      ...formData,
+      totalNetFee: (String(formData.totalGrossFee ?? '').trim() !== '' || String(formData.discount ?? '').trim() !== '' || String(formData.totalNetFee ?? '').trim() !== '')
+        ? String(summary.totalNetFee)
+        : '',
+      paidFee: String(summary.paidFee),
+      pendingFee: String(summary.pendingFee),
+    });
   };
 
   // ── DELETE MODAL ──────────────────────────────────────────
@@ -336,6 +492,11 @@ export default function FeesModals({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+          {validationError && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+              {validationError}
+            </div>
+          )}
 
           {/* Student Info */}
           <Section title="Student Information">
@@ -395,7 +556,7 @@ export default function FeesModals({
                     ))}
                   </div>
                 )}
-                
+
                 {showDropdown && !loadingStudents && filteredStudents.length === 0 && formData.studentId.trim() !== '' && (
                   <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 shadow-lg">
                     No matching students found
@@ -411,23 +572,29 @@ export default function FeesModals({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="Total Gross Fee" name="totalGrossFee" inputMode="numeric" value={formData.totalGrossFee} onChange={handleChange} disabled={loading} placeholder="105000" />
               <Field label="Discount" name="discount" inputMode="numeric" value={formData.discount} onChange={handleChange} disabled={loading} placeholder="0" />
-              <ComputedField label="Total Net Fee (auto)" value={formData.totalNetFee} />
+              <ComputedField label="Total Net Fee (auto)" value={summary.totalNetFee} />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              {hasInstallments ? (
-                <ComputedField label="Paid Fee (auto)" value={formData.paidFee} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+              {summary.hasInstallmentDrivenPaid ? (
+                <ComputedField label="Paid Fee (auto)" value={summary.paidFee} />
               ) : (
                 <Field label="Paid Fee" name="paidFee" inputMode="numeric" value={formData.paidFee} onChange={handleChange} disabled={loading} placeholder="0" />
               )}
-              <ComputedField label="Pending Fee (auto)" value={formData.pendingFee} />
+              <ComputedField label="Pending Fee (auto)" value={summary.pendingFee} />
+              <StatusField label="Fee Status" status={summary.status} />
             </div>
+            {summary.excludedInstallments.length > 0 && (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Note: Installment {summary.excludedInstallments.join(', ')} marked as failed/cancelled/pending and excluded from Paid Fee.
+              </p>
+            )}
           </Section>
 
           {/* Installment 1 */}
           <Section title="Payment Installment 1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Date" name="date" type="date" value={formData.date} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount1" type="number" value={formData.amount1} onChange={handleChange} disabled={loading} placeholder="0" />
+              <Field label="Amount" name="amount1" inputMode="numeric" value={formData.amount1} onChange={handleChange} disabled={loading} placeholder="0" />
               <Field label="Details / Remarks" name="details1" value={formData.details1} onChange={handleChange} disabled={loading} placeholder="e.g. Cash payment" />
               <Field label="Reference No." name="ref1" value={formData.ref1} onChange={handleChange} disabled={loading} placeholder="e.g. TXN001" />
             </div>
@@ -437,7 +604,7 @@ export default function FeesModals({
           <Section title="Payment Installment 2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Date" name="date2" type="date" value={formData.date2} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount2" type="number" value={formData.amount2} onChange={handleChange} disabled={loading} placeholder="0" />
+              <Field label="Amount" name="amount2" inputMode="numeric" value={formData.amount2} onChange={handleChange} disabled={loading} placeholder="0" />
               <Field label="Details / Remarks" name="details2" value={formData.details2} onChange={handleChange} disabled={loading} placeholder="e.g. Online transfer" />
               <Field label="Reference No." name="ref2" value={formData.ref2} onChange={handleChange} disabled={loading} placeholder="e.g. TXN002" />
             </div>
@@ -447,7 +614,7 @@ export default function FeesModals({
           <Section title="Payment Installment 3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Date" name="date3" type="date" value={formData.date3} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount3" type="number" value={formData.amount3} onChange={handleChange} disabled={loading} placeholder="0" />
+              <Field label="Amount" name="amount3" inputMode="numeric" value={formData.amount3} onChange={handleChange} disabled={loading} placeholder="0" />
               <Field label="Details / Remarks" name="details3" value={formData.details3} onChange={handleChange} disabled={loading} placeholder="e.g. Cheque" />
               <Field label="Reference No." name="ref3" value={formData.ref3} onChange={handleChange} disabled={loading} placeholder="e.g. TXN003" />
             </div>
@@ -457,7 +624,7 @@ export default function FeesModals({
           <Section title="Payment Installment 4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Date" name="date4" type="date" value={formData.date4} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount4" type="number" value={formData.amount4} onChange={handleChange} disabled={loading} placeholder="0" />
+              <Field label="Amount" name="amount4" inputMode="numeric" value={formData.amount4} onChange={handleChange} disabled={loading} placeholder="0" />
               <Field label="Details / Remarks" name="details4" value={formData.details4} onChange={handleChange} disabled={loading} placeholder="e.g. UPI" />
               <Field label="Reference No." name="ref4" value={formData.ref4} onChange={handleChange} disabled={loading} placeholder="e.g. TXN004" />
             </div>
@@ -527,6 +694,26 @@ function ComputedField({ label, value }) {
       </label>
       <div className="mt-1.5 w-full rounded-lg border border-brand-blue/30 bg-brand-blue/5 px-3 py-2 text-sm font-semibold text-brand-blue dark:border-brand-blue/40 dark:bg-brand-blue/10 dark:text-blue-300 select-none">
         {value !== '' && value !== undefined ? `₹ ${Number(value).toLocaleString('en-IN')}` : '—'}
+      </div>
+    </div>
+  );
+}
+
+function StatusField({ label, status }) {
+  const tone =
+    status === 'Fully Paid'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300'
+      : status === 'Partial Paid'
+        ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300'
+        : status === 'Overpaid'
+          ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300'
+          : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300';
+
+  return (
+    <div>
+      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</label>
+      <div className={`mt-1.5 w-full rounded-lg border px-3 py-2 text-sm font-semibold select-none ${tone}`}>
+        {status}
       </div>
     </div>
   );

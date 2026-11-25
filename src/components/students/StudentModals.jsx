@@ -1,5 +1,102 @@
 import { useState, useEffect } from 'react';
 
+const EMPTY_FORM_DATA = {
+  studentId: '',
+  academicYear: '26-27',
+  rollNumber: '',
+  studentName: '',
+  fatherName: '',
+  surname: '',
+  motherName: '',
+  dateOfBirth: '',
+  gender: 'M',
+  class: '',
+  section: '',
+  group: '',
+  mobileNumber: '',
+  parentMobile: '',
+  address: '',
+  admissionDate: '',
+  status: 'Active',
+};
+
+const normalizeKey = (key) => String(key).toLowerCase().replace(/[\s_-]+/g, '');
+
+const getFieldValue = (obj, ...candidates) => {
+  if (!obj) return undefined;
+  const entries = Object.entries(obj);
+  for (const candidate of candidates) {
+    if (obj[candidate] !== undefined && obj[candidate] !== null && obj[candidate] !== '') {
+      return obj[candidate];
+    }
+    const target = normalizeKey(candidate);
+    const match = entries.find(([k]) => normalizeKey(k) === target);
+    if (match && match[1] !== undefined && match[1] !== null && match[1] !== '') {
+      return match[1];
+    }
+  }
+  return undefined;
+};
+
+const toInputString = (val, fallback = '') => {
+  if (val === undefined || val === null) return fallback;
+  return String(val);
+};
+
+const normalizeGender = (val) => {
+  if (val === undefined || val === null) return '';
+  const s = String(val).trim().toLowerCase();
+  if (!s) return '';
+  if (s === 'm' || s === 'male') return 'M';
+  if (s === 'f' || s === 'female') return 'F';
+  return String(val).trim();
+};
+
+const normalizeStatus = (data) => {
+  const rawStatus = getFieldValue(data, 'status', 'Status');
+  if (rawStatus !== undefined) {
+    const s = String(rawStatus).trim().toLowerCase();
+    if (s === 'inactive' || s === 'false' || s === '0' || s === 'no') return 'Inactive';
+    if (s === 'active' || s === 'true' || s === '1' || s === 'yes') return 'Active';
+  }
+  const rawActive = getFieldValue(data, 'active', 'Active', 'is_active');
+  if (rawActive === false) return 'Inactive';
+  if (rawActive !== undefined) {
+    const s = String(rawActive).trim().toLowerCase();
+    if (s === 'false' || s === 'inactive' || s === '0' || s === 'no') return 'Inactive';
+  }
+  return 'Active';
+};
+
+const buildFormData = (mode, studentData) => {
+  if (mode === 'edit' && studentData) {
+    return {
+      studentId: toInputString(getFieldValue(studentData, 'studentId', 'student_id', 'Student ID')),
+      academicYear: toInputString(getFieldValue(studentData, 'academicYear', 'Academic Year', 'academic_year')),
+      rollNumber: toInputString(getFieldValue(studentData, 'rollNumber', 'Roll Number', 'roll_number', 'roll_no')),
+      studentName: toInputString(getFieldValue(studentData, 'studentName', 'student_name', 'student_NAme', 'Student Name', 'name')),
+      fatherName: toInputString(getFieldValue(studentData, 'fatherName', 'father name', 'father NAme', 'father_name')),
+      surname: toInputString(getFieldValue(studentData, 'surname', 'Surname', 'SurNAme')),
+      motherName: toInputString(getFieldValue(studentData, 'motherName', 'mother name', 'mother NAme', 'mother_name')),
+      dateOfBirth: toInputString(getFieldValue(studentData, 'dateOfBirth', 'date of birth', 'date_of_birth', 'dob')),
+      gender: normalizeGender(getFieldValue(studentData, 'gender', 'Gender')),
+      class: toInputString(getFieldValue(studentData, 'class', 'className', 'class_name')),
+      section: toInputString(getFieldValue(studentData, 'section', 'Section')),
+      group: toInputString(getFieldValue(studentData, 'group', 'course', 'Course')),
+      mobileNumber: toInputString(getFieldValue(studentData, 'mobileNumber', 'studentPhone', 'Student_Phone', 'student_phone', 'mobile')),
+      parentMobile: toInputString(getFieldValue(studentData, 'parentMobile', 'parentPhone', 'parent_phone', 'parent_mobile')),
+      address: toInputString(getFieldValue(studentData, 'address', 'Address')),
+      admissionDate: toInputString(getFieldValue(studentData, 'admissionDate', 'Admission Date', 'admission_date')),
+      status: normalizeStatus(studentData),
+    };
+  }
+
+  return {
+    ...EMPTY_FORM_DATA,
+    admissionDate: new Date().toISOString().split('T')[0],
+  };
+};
+
 export default function StudentModals({
   isOpen,
   mode, // 'add' | 'edit' | 'delete'
@@ -9,75 +106,17 @@ export default function StudentModals({
   onSave, // (data) => Promise
   loading,
 }) {
-  const [formData, setFormData] = useState({
-    studentId: '',
-    academicYear: '26-27',
-    rollNumber: '',
-    studentName: '',
-    fatherName: '',
-    surname: '',
-    motherName: '',
-    dateOfBirth: '',
-    gender: 'M',
-    class: '',
-    section: '',
-    group: '',
-    mobileNumber: '',
-    parentMobile: '',
-    address: '',
-    admissionDate: '',
-    status: 'Active',
-  });
+  const [formData, setFormData] = useState(() => (isOpen ? buildFormData(mode, studentData) : EMPTY_FORM_DATA));
 
   const [errors, setErrors] = useState({});
 
   // Reset form when modal opens or mode/studentData changes
   useEffect(() => {
+    setErrors({});
     if (isOpen) {
-      setErrors({});
-      if (mode === 'edit' && studentData) {
-        // Map studentData properties to form properties
-        setFormData({
-          studentId: studentData.studentId || studentData.student_id || studentData['student_id'] || '',
-          academicYear: studentData.academicYear || studentData['Academic Year'] || '26-27',
-          rollNumber: studentData.rollNumber || studentData['Roll Number'] || '',
-          studentName: studentData.name || studentData.studentName || studentData['student_name'] || '',
-          fatherName: studentData.fatherName || studentData['father name'] || '',
-          surname: studentData.surname || studentData['Surname'] || '',
-          motherName: studentData.motherName || studentData['mother name'] || '',
-          dateOfBirth: studentData.dateOfBirth || studentData['date of birth'] || '',
-          gender: studentData.gender || studentData['gender'] || 'M',
-          class: studentData.className || studentData.class || studentData['class'] || '',
-          section: studentData.section || studentData['section'] || '',
-          group: studentData.group || studentData.course || studentData['Course'] || '',
-          mobileNumber: studentData.mobileNumber || studentData.studentPhone || studentData['Student_Phone'] || '',
-          parentMobile: studentData.parentMobile || studentData.parentPhone || studentData['parent_phone'] || '',
-          address: studentData.address || studentData['address'] || '',
-          admissionDate: studentData.admissionDate || studentData['Admission Date'] || '',
-          status: studentData.status || (studentData.active !== false && studentData['Active'] !== false ? 'Active' : 'Inactive'),
-        });
-      } else {
-        // Default values for add mode
-        setFormData({
-          studentId: '',
-          academicYear: '26-27',
-          rollNumber: '',
-          studentName: '',
-          fatherName: '',
-          surname: '',
-          motherName: '',
-          dateOfBirth: '',
-          gender: 'M',
-          class: '',
-          section: '',
-          group: '',
-          mobileNumber: '',
-          parentMobile: '',
-          address: '',
-          admissionDate: new Date().toISOString().split('T')[0],
-          status: 'Active',
-        });
-      }
+      setFormData(buildFormData(mode, studentData));
+    } else {
+      setFormData(EMPTY_FORM_DATA);
     }
   }, [isOpen, mode, studentData]);
 
@@ -405,6 +444,7 @@ export default function StudentModals({
                 disabled={loading}
                 className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               >
+                <option value="">Select Gender</option>
                 <option value="M">Male (M)</option>
                 <option value="F">Female (F)</option>
               </select>

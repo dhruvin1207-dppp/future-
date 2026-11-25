@@ -83,6 +83,7 @@ export default function TaskTable({ tasks = [], onEdit, onDelete }) {
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
               {task.assigneeId && <span>👤 {task.assigneeId}</span>}
               {task.dueDate && <span>📅 {task.dueDate}</span>}
+              {task.dueTime && <span>🕒 {task.dueTime}</span>}
             </div>
           </div>
         ))}
@@ -96,6 +97,7 @@ export default function TaskTable({ tasks = [], onEdit, onDelete }) {
               <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Task</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Assignee ID</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Due Date</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Due Time</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Priority</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white">Status</th>
               {(onEdit || onDelete) && (
@@ -114,6 +116,9 @@ export default function TaskTable({ tasks = [], onEdit, onDelete }) {
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                   {task.dueDate || '—'}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                  {task.dueTime || '—'}
                 </td>
                 <td className="px-4 py-3 text-sm">
                   <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getPriorityBgColor(task.priority)}`}>

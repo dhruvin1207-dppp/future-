@@ -4,13 +4,12 @@ export const tableSections = [
   { id: 'attendance', label: 'Attendance', icon: 'check' },
   { id: 'marks', label: 'Marks', icon: 'marks' },
   { id: 'timetable', label: 'Timetable', icon: 'calendar' },
-  { id: 'teachers', label: 'Teachers', icon: 'teacher' },
+  { id: 'teachers', label: 'Teacher and Reception', icon: 'teacher' },
   { id: 'newStudentInquiry', label: 'New Student Inquiry', icon: 'inquiry' },
   { id: 'exam', label: 'Exam', icon: 'exam' },
   { id: 'tasks', label: 'Tasks', icon: 'tasks' },
   { id: 'activeSession', label: 'Active Session', icon: 'session' },
   { id: 'fees', label: 'Fees', icon: 'fees' },
-  { id: 'reception', label: 'Reception', icon: 'session' },
 ];
 
 export const menuItems = [
@@ -21,13 +20,12 @@ export const menuItems = [
   { id: 'dayByDayAttendance', label: 'Day by day attendance', icon: 'check' },
   { id: 'marks', label: 'Marks', icon: 'marks' },
   { id: 'timetable', label: 'Timetable', icon: 'calendar' },
-  { id: 'teachers', label: 'Teachers', icon: 'teacher' },
+  { id: 'teachers', label: 'Teacher and Reception', icon: 'teacher' },
   { id: 'newStudentInquiry', label: 'New Student Inquiry', icon: 'inquiry' },
   { id: 'exam', label: 'Exam', icon: 'exam' },
   { id: 'tasks', label: 'Tasks', icon: 'tasks' },
   { id: 'activeSession', label: 'Active Session', icon: 'session' },
   { id: 'fees', label: 'Fees', icon: 'fees' },
-  { id: 'reception', label: 'Reception', icon: 'session' },
   { id: 'adminPanel', label: 'Staff Page Access', icon: 'shield', adminOnly: true },
 ];
 
@@ -39,13 +37,12 @@ export const pageTitles = {
   dayByDayAttendance: { title: 'Day by day attendance', subtitle: 'Full day-by-day attendance sheet records' },
   marks: { title: 'Marks', subtitle: 'Exam marks by student' },
   timetable: { title: 'Timetable', subtitle: 'Class timetable' },
-  teachers: { title: 'Teachers', subtitle: 'Faculty records' },
+  teachers: { title: 'Teacher and Reception', subtitle: 'Faculty and reception records' },
   newStudentInquiry: { title: 'New Student Inquiry', subtitle: 'Incoming student inquiries' },
   exam: { title: 'Exam', subtitle: 'Exam schedules and records' },
   tasks: { title: 'Tasks', subtitle: 'Task management and tracking' },
   activeSession: { title: 'Active Session', subtitle: 'Active user login roles & sessions' },
   fees: { title: 'Fees', subtitle: 'Student fee records & payment tracking' },
-  reception: { title: 'Reception', subtitle: 'Receptionist call and visitor logs' },
   adminPanel: { title: 'Staff Page Access', subtitle: 'Manage which pages are visible to Staff members' },
 };
 

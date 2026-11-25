@@ -59,37 +59,65 @@ const getSheetsClient = () => {
 };
 
 // Helper: Map form fields dynamically to sheet headers
-const mapBodyToRow = (body, headers, nextId = null) => {
-  return headers.map(header => {
-    const key = header.toLowerCase().trim();
-    if (key === 'id') return String(nextId || body.id || '').trim();
-    if (key === 'student_id') return String(body.studentId || body.student_id || '').trim();
-    if (key === 'academic year') return String(body.academicYear || body.academic_year || '').trim();
-    if (key === 'roll number') return String(body.rollNumber || body.roll_number || '').trim();
-    if (key === 'student_name') return String(body.studentName || body.student_name || '').toUpperCase().trim();
-    if (key === 'father name') return String(body.fatherName || body.father_name || '').toUpperCase().trim();
-    if (key === 'surname') return String(body.surname || '').toUpperCase().trim();
-    if (key === 'mother name') return String(body.motherName || body.mother_name || '').toUpperCase().trim();
-    if (key === 'date of birth') return String(body.dateOfBirth || body.date_of_birth || '').trim();
-    if (key === 'gender') return String(body.gender || '').toUpperCase().trim();
-    if (key === 'class') return String(body.class || '').trim();
-    if (key === 'section') return String(body.section || '').trim();
-    if (key === 'board') return String(body.board || 'GSEB').toUpperCase().trim();
-    if (key === 'medium') return String(body.medium || 'GM').toUpperCase().trim();
-    if (key === 'course') return String(body.course || body.group || '').trim();
-    if (key === 'parent_phone') return String(body.parentPhone || body.parentMobile || '').trim();
-    if (key === 'student_phone') return String(body.studentPhone || body.mobileNumber || '').trim();
-    if (key === 'address') return String(body.address || '').trim();
-    if (key === 'email') return String(body.email || '').trim();
-    if (key === 'fees paid') return String(body.feesPaid || '0').trim();
-    if (key === 'pending fees') return String(body.pendingFees || '0').trim();
-    if (key === 'total fees') return String(body.totalFees || '0').trim();
-    if (key === 'discount') return String(body.discount || '0').trim();
-    if (key === 'original fees') return String(body.originalFees || '0').trim();
-    if (key === 'admission date') return String(body.admissionDate || '').trim();
-    if (key === 'active') return body.active !== false && String(body.status).toLowerCase() !== 'inactive' ? 'TRUE' : 'FALSE';
+const STUDENT_FIELD_MAP = {
+  student_id: { keys: ['studentId', 'student_id'] },
+  'academic year': { keys: ['academicYear', 'academic_year'] },
+  'roll number': { keys: ['rollNumber', 'roll_number'] },
+  student_name: { keys: ['studentName', 'student_name'], upper: true },
+  'father name': { keys: ['fatherName', 'father_name'], upper: true },
+  surname: { keys: ['surname'], upper: true },
+  'mother name': { keys: ['motherName', 'mother_name'], upper: true },
+  'date of birth': { keys: ['dateOfBirth', 'date_of_birth'] },
+  gender: { keys: ['gender'], upper: true },
+  class: { keys: ['class'] },
+  section: { keys: ['section'] },
+  board: { keys: ['board'], defaultVal: 'GSEB', upper: true },
+  medium: { keys: ['medium'], defaultVal: 'GM', upper: true },
+  course: { keys: ['course', 'group'] },
+  parent_phone: { keys: ['parentPhone', 'parentMobile'] },
+  student_phone: { keys: ['studentPhone', 'mobileNumber'] },
+  address: { keys: ['address'] },
+  email: { keys: ['email'] },
+  'fees paid': { keys: ['feesPaid'], defaultVal: '0' },
+  'pending fees': { keys: ['pendingFees'], defaultVal: '0' },
+  'total fees': { keys: ['totalFees'], defaultVal: '0' },
+  discount: { keys: ['discount'], defaultVal: '0' },
+  'original fees': { keys: ['originalFees'], defaultVal: '0' },
+  'admission date': { keys: ['admissionDate'] },
+};
 
-    return String(body[header] || '').trim();
+const pickDefinedField = (body, keys) => {
+  for (const k of keys) {
+    if (body[k] !== undefined) return body[k];
+  }
+  return undefined;
+};
+
+const mapBodyToRow = (body, headers, nextId = null, existingRow = null) => {
+  return headers.map((header, idx) => {
+    const key = header.toLowerCase().trim();
+    const existingVal = existingRow ? String(existingRow[idx] ?? '').trim() : undefined;
+
+    if (key === 'id') return String(nextId || body.id || '').trim();
+
+    if (key === 'active') {
+      if (existingRow && body.active === undefined && body.status === undefined) {
+        return existingVal;
+      }
+      return body.active !== false && String(body.status).toLowerCase() !== 'inactive' ? 'TRUE' : 'FALSE';
+    }
+
+    const config = STUDENT_FIELD_MAP[key];
+    if (config) {
+      const provided = pickDefinedField(body, config.keys);
+      if (existingRow && provided === undefined) return existingVal;
+      const raw = config.defaultVal !== undefined ? (provided || config.defaultVal) : (provided ?? '');
+      const trimmed = String(raw).trim();
+      return config.upper ? trimmed.toUpperCase() : trimmed;
+    }
+
+    if (existingRow && body[header] === undefined) return existingVal;
+    return String(body[header] ?? '').trim();
   });
 };
 
@@ -224,8 +252,10 @@ app.put('/api/students/:studentId', async (req, res) => {
       throw new Error('Student ID column not found in sheet.');
     }
 
-    // Locate Row (1-based sheet row number is rowIndex + 1)
-    const rowIndex = rows.findIndex(r => String(r[studentIdColIdx]).trim().toLowerCase() === String(studentId).trim().toLowerCase());
+    // Locate Row (1-based sheet row number is rowIndex + 1, skip header row 0)
+    const rowIndex = rows.findIndex(
+      (r, idx) => idx > 0 && String(r[studentIdColIdx] || '').trim().toLowerCase() === String(studentId).trim().toLowerCase()
+    );
 
     if (rowIndex === -1) {
       return res.status(404).json({ success: false, message: `Student ID "${studentId}" not found.` });
@@ -235,7 +265,7 @@ app.put('/api/students/:studentId', async (req, res) => {
     const existingRow = rows[rowIndex];
     const existingId = existingRow[0]; // Preserve internal sequence id
 
-    const updatedRow = mapBodyToRow(student, headers, existingId);
+    const updatedRow = mapBodyToRow(student, headers, existingId, existingRow);
 
     // Update row
     await sheets.spreadsheets.values.update({
@@ -1011,14 +1041,30 @@ const TEACHER_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_TEACHERS || 'tea
 const RECEPTION_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_RECEPTION || 'Reception';
 console.log('Task sheet name:', TASK_SHEET_NAME);
 
-/** Map task body to a row array: [task, assignee_id, due_date, priority, status] */
-const mapTaskBodyToRow = (body) => [
-  String(body.name || body.task || '').trim(),
-  String(body.assigneeId || body.assign || '').trim(),
-  String(body.dueDate || body.due || '').trim(),
-  String(body.priority || 'Normal').trim(),
-  String(body.status || 'Pending').trim(),
-];
+/** Map task body to a row array using sheet headers (fallback: [task, assignee_id, due_date, due_time, priority, status]) */
+const mapTaskBodyToRow = (body, headers = []) => {
+  if (!headers.length) {
+    return [
+      String(body.name || body.task || '').trim(),
+      String(body.assigneeId || body.assign || '').trim(),
+      String(body.dueDate || body.due || '').trim(),
+      String(body.dueTime || '').trim(),
+      String(body.priority || 'Normal').trim(),
+      String(body.status || 'Pending').trim(),
+    ];
+  }
+
+  return headers.map((header) => {
+    const h = String(header || '').toLowerCase().trim();
+    if (h.includes('task') && !h.includes('assign')) return String(body.name ?? body.task ?? '').trim();
+    if (h.includes('assign')) return String(body.assigneeId ?? body.assign ?? '').trim();
+    if (h.includes('due') && h.includes('time')) return String(body.dueTime ?? '').trim();
+    if (h.includes('due')) return String(body.dueDate ?? body.due ?? '').trim();
+    if (h.includes('priority')) return String(body.priority || 'Normal').trim();
+    if (h.includes('status')) return String(body.status || 'Pending').trim();
+    return String(body[header] ?? '').trim();
+  });
+};
 
 // GET teachers list for assignee dropdown
 app.get('/api/teachers-list', async (req, res) => {
@@ -1092,7 +1138,14 @@ app.get('/api/reception-list', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
   try {
     const sheets = getSheetsClient();
-    const newRows = Array.isArray(req.body) ? req.body.map(mapTaskBodyToRow) : [mapTaskBodyToRow(req.body)];
+    const headerRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TASK_SHEET_NAME}!A1:Z1`,
+    });
+    const headers = headerRes.data.values?.[0] || [];
+    const newRows = Array.isArray(req.body)
+      ? req.body.map((item) => mapTaskBodyToRow(item, headers))
+      : [mapTaskBodyToRow(req.body, headers)];
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${TASK_SHEET_NAME}!A1`,
@@ -1115,11 +1168,16 @@ app.put('/api/tasks/:rowId', async (req, res) => {
     if (isNaN(rowNumber) || rowNumber < 1) {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
+    const headerRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TASK_SHEET_NAME}!A1:Z1`,
+    });
+    const headers = headerRes.data.values?.[0] || [];
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${TASK_SHEET_NAME}!A${rowNumber}:E${rowNumber}`,
+      range: `${TASK_SHEET_NAME}!A${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [mapTaskBodyToRow(req.body)] },
+      requestBody: { values: [mapTaskBodyToRow(req.body, headers)] },
     });
     res.json({ success: true, message: 'Task Updated Successfully', timestamp: new Date().toISOString() });
   } catch (error) {
@@ -1167,45 +1225,144 @@ const FEES_SHEET_NAME = process.env.VITE_GOOGLE_SHEETS_SHEET_FEES || 'fees_info'
 console.log('Fees sheet name:', FEES_SHEET_NAME);
 
 // Helper: Map fees request body dynamically to spreadsheet headers
-const mapFeesBodyToRowWithHeaders = (body, headers) => {
-  return headers.map(header => {
-    const key = header.toLowerCase().replace(/[\s_-]+/g, '');
-    if (!key) return ''; // Empty column H or others
+const INACTIVE_FEE_TX_REGEX = /\b(failed|fail|cancelled|canceled|cancel|pending|bounced|rejected|reversed)\b/i;
+const recentFeeSubmissions = new Map();
 
-    if (key === 'studentid' || key === 'student_id') return String(body.studentId || body.Student_ID || '').trim();
-    if (key === 'name') return String(body.name || body.Name || '').trim();
-    if (key === 'totalgrossfee') return String(body.totalGrossFee || body['TOTAL GROSS FEE'] || '').trim();
-    if (key === 'discount') return String(body.discount || '').trim();
-    if (key === 'totalnetfee') return String(body.totalNetFee || body['TOTAL NET FEE'] || '').trim();
-    if (key === 'paidfee') return String(body.paidFee || body['PAID FEE'] || '').trim();
-    if (key === 'pendingfee') return String(body.pendingFee || body['PENDING FEE'] || '').trim();
+const sanitizeFeePayload = (body) => {
+  const installments = [
+    { num: 1, amtKey: 'amount1', detailsKey: 'details1', altDetailsKey: 'detials1', refKey: 'ref1' },
+    { num: 2, amtKey: 'amount2', detailsKey: 'details2', altDetailsKey: 'detials2', refKey: 'ref2' },
+    { num: 3, amtKey: 'amount3', detailsKey: 'details3', altDetailsKey: 'detials3', refKey: 'ref3' },
+    { num: 4, amtKey: 'amount4', detailsKey: 'details4', altDetailsKey: 'detials4', refKey: 'ref4' },
+  ];
+
+  const seenRefs = new Map();
+  let installmentSum = 0;
+  let hasInstallments = false;
+
+  for (const inst of installments) {
+    const rawAmt = String(body[inst.amtKey] ?? '').trim();
+    if (rawAmt !== '') {
+      const amt = Number(rawAmt);
+      if (!Number.isFinite(amt) || amt < 0) {
+        return { error: `Installment ${inst.num} amount must be a valid non-negative number.` };
+      }
+      if (amt > 0) {
+        hasInstallments = true;
+        const details = String(body[inst.detailsKey] ?? body[inst.altDetailsKey] ?? '').trim();
+        const ref = String(body[inst.refKey] ?? '').trim();
+        const isInactive = INACTIVE_FEE_TX_REGEX.test(`${details} ${ref}`);
+        if (!isInactive) {
+          installmentSum += amt;
+        }
+      }
+    }
+    const ref = String(body[inst.refKey] ?? '').trim();
+    if (ref) {
+      const normRef = ref.toLowerCase();
+      if (seenRefs.has(normRef)) {
+        return { error: `Duplicate Reference No. "${ref}" across installments.` };
+      }
+      seenRefs.set(normRef, inst.num);
+    }
+  }
+
+  const grossStr = String(body.totalGrossFee ?? body['TOTAL GROSS FEE'] ?? '').trim();
+  const discStr = String(body.discount ?? body.DISCOUNT ?? '').trim();
+  const gross = grossStr !== '' ? Number(grossStr) : 0;
+  const disc = discStr !== '' ? Number(discStr) : 0;
+  if (grossStr !== '' && (!Number.isFinite(gross) || gross < 0)) {
+    return { error: 'Total Gross Fee must be a valid non-negative number.' };
+  }
+  if (discStr !== '' && (!Number.isFinite(disc) || disc < 0)) {
+    return { error: 'Discount must be a valid non-negative number.' };
+  }
+  if (grossStr !== '' && discStr !== '' && disc > gross) {
+    return { error: 'Discount cannot exceed Total Gross Fee.' };
+  }
+
+  const hasNetSource = grossStr !== '' || discStr !== '';
+  const totalNetFee = hasNetSource
+    ? Math.max(0, gross - disc)
+    : (Number(body.totalNetFee ?? body['TOTAL NET FEE'] ?? 0) || 0);
+
+  const manualPaidStr = String(body.paidFee ?? body['PAID FEE'] ?? '').trim();
+  const paidFee = hasInstallments
+    ? installmentSum
+    : (manualPaidStr !== '' ? Number(manualPaidStr) : 0);
+
+  if (!Number.isFinite(paidFee) || paidFee < 0) {
+    return { error: 'Paid Fee must be a valid non-negative number.' };
+  }
+  if (paidFee > totalNetFee && (totalNetFee > 0 || grossStr !== '' || paidFee > 0)) {
+    return { error: `Paid Fee (${paidFee}) cannot exceed Total Net Fee (${totalNetFee}).` };
+  }
+
+  const pendingFee = Math.max(0, totalNetFee - paidFee);
+  return {
+    normalizedBody: {
+      ...body,
+      totalNetFee: hasNetSource || String(body.totalNetFee ?? '').trim() !== '' ? String(totalNetFee) : '',
+      paidFee: String(paidFee),
+      pendingFee: String(pendingFee),
+    },
+  };
+};
+
+const isDuplicateFeeSubmission = (key, payload) => {
+  const now = Date.now();
+  const signature = JSON.stringify(payload);
+  const prev = recentFeeSubmissions.get(key);
+  for (const [k, v] of recentFeeSubmissions.entries()) {
+    if (now - v.ts > 5000) recentFeeSubmissions.delete(k);
+  }
+  if (prev && prev.signature === signature && now - prev.ts < 5000) {
+    return true;
+  }
+  recentFeeSubmissions.set(key, { signature, ts: now });
+  return false;
+};
+
+const mapFeesBodyToRowWithHeaders = (body, headers, existingRow = null) => {
+  return headers.map((header, idx) => {
+    const key = header.toLowerCase().replace(/[\s_-]+/g, '');
+    const existingVal = existingRow ? String(existingRow[idx] ?? '').trim() : '';
+    if (!key) return existingRow ? existingVal : ''; // Preserve empty/unlabeled columns like col H
+
+    if (key === 'studentid' || key === 'student_id') return String(body.studentId ?? body.Student_ID ?? '').trim();
+    if (key === 'name') return String(body.name ?? body.Name ?? '').trim();
+    if (key === 'totalgrossfee') return String(body.totalGrossFee ?? body['TOTAL GROSS FEE'] ?? '').trim();
+    if (key === 'discount') return String(body.discount ?? '').trim();
+    if (key === 'totalnetfee') return String(body.totalNetFee ?? body['TOTAL NET FEE'] ?? '').trim();
+    if (key === 'paidfee') return String(body.paidFee ?? body['PAID FEE'] ?? '').trim();
+    if (key === 'pendingfee') return String(body.pendingFee ?? body['PENDING FEE'] ?? '').trim();
 
     // Installment 1
-    if (key === 'date') return String(body.date || body.Date || '').trim();
-    if (key === 'detials1' || key === 'details1') return String(body.details1 || body.detials1 || '').trim();
-    if (key === 'ref1') return String(body.ref1 || '').trim();
-    if (key === 'amount1') return String(body.amount1 || '').trim();
+    if (key === 'date') return String(body.date ?? body.Date ?? '').trim();
+    if (key === 'detials1' || key === 'details1') return String(body.details1 ?? body.detials1 ?? '').trim();
+    if (key === 'ref1') return String(body.ref1 ?? '').trim();
+    if (key === 'amount1') return String(body.amount1 ?? '').trim();
 
     // Installment 2
-    if (key === 'date2') return String(body.date2 || '').trim();
-    if (key === 'detials2' || key === 'details2') return String(body.details2 || body.detials2 || '').trim();
-    if (key === 'ref2') return String(body.ref2 || '').trim();
-    if (key === 'amount2') return String(body.amount2 || '').trim();
+    if (key === 'date2') return String(body.date2 ?? '').trim();
+    if (key === 'detials2' || key === 'details2') return String(body.details2 ?? body.detials2 ?? '').trim();
+    if (key === 'ref2') return String(body.ref2 ?? '').trim();
+    if (key === 'amount2') return String(body.amount2 ?? '').trim();
 
     // Installment 3
-    if (key === 'date3') return String(body.date3 || '').trim();
-    if (key === 'detials3' || key === 'details3') return String(body.details3 || body.detials3 || '').trim();
-    if (key === 'ref3') return String(body.ref3 || '').trim();
-    if (key === 'amount3') return String(body.amount3 || '').trim();
+    if (key === 'date3') return String(body.date3 ?? '').trim();
+    if (key === 'detials3' || key === 'details3') return String(body.details3 ?? body.detials3 ?? '').trim();
+    if (key === 'ref3') return String(body.ref3 ?? '').trim();
+    if (key === 'amount3') return String(body.amount3 ?? '').trim();
 
     // Installment 4
-    if (key === 'date4') return String(body.date4 || '').trim();
-    if (key === 'detials4' || key === 'details4') return String(body.details4 || body.detials4 || '').trim();
-    if (key === 'ref4') return String(body.ref4 || '').trim();
-    if (key === 'amount4') return String(body.amount4 || '').trim();
+    if (key === 'date4') return String(body.date4 ?? '').trim();
+    if (key === 'detials4' || key === 'details4') return String(body.details4 ?? body.detials4 ?? '').trim();
+    if (key === 'ref4') return String(body.ref4 ?? '').trim();
+    if (key === 'amount4') return String(body.amount4 ?? '').trim();
 
-    // Fallback using exact matching
-    return String(body[header] || '').trim();
+    if (existingRow && body[header] === undefined) return existingVal;
+    return String(body[header] ?? '').trim();
   });
 };
 
@@ -1213,6 +1370,18 @@ const mapFeesBodyToRowWithHeaders = (body, headers) => {
 app.post('/api/fees', async (req, res) => {
   console.log('POST /api/fees - Body:', req.body);
   try {
+    const items = Array.isArray(req.body) ? req.body : [req.body];
+    const sanitizedItems = [];
+    for (const item of items) {
+      const { error, normalizedBody } = sanitizeFeePayload(item || {});
+      if (error) return res.status(400).json({ success: false, message: error });
+      sanitizedItems.push(normalizedBody);
+    }
+
+    if (isDuplicateFeeSubmission('POST', sanitizedItems)) {
+      return res.status(409).json({ success: false, message: 'Duplicate fee submission detected. Please wait a moment.' });
+    }
+
     const sheets = getSheetsClient();
 
     // Fetch headers first
@@ -1222,9 +1391,7 @@ app.post('/api/fees', async (req, res) => {
     });
     const headers = headerData.data.values[0] || [];
 
-    const newRows = Array.isArray(req.body)
-      ? req.body.map(item => mapFeesBodyToRowWithHeaders(item, headers))
-      : [mapFeesBodyToRowWithHeaders(req.body, headers)];
+    const newRows = sanitizedItems.map(item => mapFeesBodyToRowWithHeaders(item, headers));
 
     // Append after last populated row in column A (Student_ID)
     await sheets.spreadsheets.values.append({
@@ -1246,20 +1413,37 @@ app.put('/api/fees/:rowId', async (req, res) => {
   const { rowId } = req.params;
   console.log(`PUT /api/fees/${rowId} - Body:`, req.body);
   try {
-    const sheets = getSheetsClient();
     const rowNumber = parseInt(rowId); // id IS the 1-based spreadsheet row number
-    if (isNaN(rowNumber) || rowNumber < 1) {
+    if (isNaN(rowNumber) || rowNumber < 2) {
       return res.status(400).json({ success: false, message: 'Invalid row ID.' });
     }
 
-    // Fetch headers first
-    const headerData = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${FEES_SHEET_NAME}!A1:Z1`,
-    });
-    const headers = headerData.data.values[0] || [];
+    const { error, normalizedBody } = sanitizeFeePayload(req.body || {});
+    if (error) {
+      return res.status(400).json({ success: false, message: error });
+    }
 
-    const updatedRow = mapFeesBodyToRowWithHeaders(req.body, headers);
+    if (isDuplicateFeeSubmission(`PUT:${rowNumber}`, normalizedBody)) {
+      return res.status(409).json({ success: false, message: 'Duplicate fee update detected. Please wait a moment.' });
+    }
+
+    const sheets = getSheetsClient();
+
+    // Fetch headers and existing row so unlabeled/unmodified columns are preserved
+    const [headerData, existingRowRes] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${FEES_SHEET_NAME}!A1:Z1`,
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${FEES_SHEET_NAME}!A${rowNumber}:Z${rowNumber}`,
+      }),
+    ]);
+    const headers = headerData.data.values?.[0] || [];
+    const existingRow = existingRowRes.data.values?.[0] || [];
+
+    const updatedRow = mapFeesBodyToRowWithHeaders(normalizedBody, headers, existingRow);
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,

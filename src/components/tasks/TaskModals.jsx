@@ -5,8 +5,25 @@ const EMPTY_FORM = {
   name: '',
   assigneeId: '',
   dueDate: '',
+  dueTime: '',
   priority: 'Normal',
   status: 'Pending',
+};
+
+const toTimeInputValue = (val) => {
+  const str = String(val ?? '').trim();
+  if (!str) return '';
+  const hhmm = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hhmm) return `${hhmm[1].padStart(2, '0')}:${hhmm[2]}`;
+  const ampm = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const isPm = ampm[3].toUpperCase() === 'PM';
+    if (isPm && h < 12) h += 12;
+    if (!isPm && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${ampm[2]}`;
+  }
+  return str;
 };
 
 const PRIORITY_OPTIONS = ['Normal', 'Low', 'Medium', 'High', 'Urgent_important'];
@@ -28,6 +45,7 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
         name:       taskData.name        || '',
         assigneeId: taskData.assigneeId  || '',
         dueDate:    taskData.dueDate     || '',
+        dueTime:    toTimeInputValue(taskData.dueTime),
         priority:   taskData.rawPriority || taskData.priority || 'Normal',
         status:     taskData.rawStatus   || taskData.status   || 'Pending',
       });
@@ -163,7 +181,7 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
             >
               <option value="">— Select Assignee —</option>
               {teachers.length > 0 && (
-                <optgroup label="Teachers" className="font-semibold text-slate-700 dark:text-slate-300">
+                <optgroup label="Teacher and Reception" className="font-semibold text-slate-700 dark:text-slate-300">
                   {teachers.map(t => (
                     <option key={t.id} value={t.id} className="font-normal">
                       {t.id}{t.name ? ` — ${t.name}` : ''}
@@ -189,13 +207,22 @@ export default function TaskModals({ isOpen, mode, taskData, onClose, onSave, lo
             </select>
           </div>
 
-          {/* Due Date */}
-          <div>
-            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Due Date</label>
-            <input
-              type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} disabled={loading}
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
+          {/* Due Date & Due Time */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Due Date</label>
+              <input
+                type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} disabled={loading}
+                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Due Time</label>
+              <input
+                type="time" name="dueTime" value={formData.dueTime} onChange={handleChange} disabled={loading}
+                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
           </div>
 
           {/* Priority & Status */}
