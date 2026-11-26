@@ -24,9 +24,9 @@ export default function BaserowDataTable({
     displayRows.every((row) => selectedRowKeys.includes(String(row.id)));
 
   return (
-    <div className="overflow-x-auto">
+    <div className="max-h-[72vh] overflow-auto">
       <table className="w-full min-w-[480px] text-left text-sm">
-        <thead className="sticky top-0 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95 z-10 border-b border-slate-100 dark:border-slate-800">
+        <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
           <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {selectable && (
               <th className="w-12 px-4 py-3 text-center">

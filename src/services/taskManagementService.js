@@ -68,7 +68,7 @@ export const fetchTaskData = async () => {
     const range = taskSheetConfig.taskSheetName;
     console.log('Fetching task data from sheet:', range);
     console.log('Sheet config:', taskSheetConfig);
-    
+
     const rows = await fetchGoogleSheetData(range);
 
     if (rows.length < 2) {

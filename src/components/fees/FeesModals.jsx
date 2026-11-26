@@ -1,6 +1,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchSectionData } from '../../services/sectionService';
 
+const MAX_INSTALLMENTS = 10;
+const BASE_INSTALLMENTS = 4;
+
+const INSTALLMENT_FIELDS = Array.from({ length: MAX_INSTALLMENTS }, (_, idx) => {
+  const num = idx + 1;
+  return {
+    num,
+    dateKey: num === 1 ? 'date' : `date${num}`,
+    amountKey: `amount${num}`,
+    detailsKey: `details${num}`,
+    refKey: `ref${num}`,
+  };
+});
+
+const INSTALLMENT_AMOUNT_KEYS = new Set(INSTALLMENT_FIELDS.map((f) => f.amountKey));
+
 const EMPTY_FORM = {
   studentId: '',
   name: '',
@@ -9,36 +25,17 @@ const EMPTY_FORM = {
   totalNetFee: '',
   paidFee: '',
   pendingFee: '',
-  // Installment 1
-  date: '',
-  details1: '',
-  ref1: '',
-  amount1: '',
-  // Installment 2
-  date2: '',
-  details2: '',
-  ref2: '',
-  amount2: '',
-  // Installment 3
-  date3: '',
-  details3: '',
-  ref3: '',
-  amount3: '',
-  // Installment 4
-  date4: '',
-  details4: '',
-  ref4: '',
-  amount4: '',
+  ...Object.fromEntries(
+    INSTALLMENT_FIELDS.flatMap(({ dateKey, detailsKey, refKey, amountKey }) => [
+      [dateKey, ''],
+      [detailsKey, ''],
+      [refKey, ''],
+      [amountKey, ''],
+    ])
+  ),
 };
 
 const INACTIVE_TX_REGEX = /\b(failed|fail|cancelled|canceled|cancel|pending|bounced|rejected|reversed)\b/i;
-
-const INSTALLMENT_FIELDS = [
-  { num: 1, dateKey: 'date', amountKey: 'amount1', detailsKey: 'details1', refKey: 'ref1' },
-  { num: 2, dateKey: 'date2', amountKey: 'amount2', detailsKey: 'details2', refKey: 'ref2' },
-  { num: 3, dateKey: 'date3', amountKey: 'amount3', detailsKey: 'details3', refKey: 'ref3' },
-  { num: 4, dateKey: 'date4', amountKey: 'amount4', detailsKey: 'details4', refKey: 'ref4' },
-];
 
 /** Resolve a field from multiple possible key names */
 const pick = (obj, ...keys) => {
@@ -157,8 +154,44 @@ export const computeFeeSummary = (data, useInstallmentSum) => {
   };
 };
 
+const getInitialVisibleInstallments = (form) => {
+  let highest = BASE_INSTALLMENTS;
+  INSTALLMENT_FIELDS.forEach(({ num, dateKey, amountKey, detailsKey, refKey }) => {
+    if (num > BASE_INSTALLMENTS && (form[dateKey] || form[amountKey] || form[detailsKey] || form[refKey])) {
+      highest = num;
+    }
+  });
+  return highest;
+};
+
+const hasAnyPositiveInstallment = (form) =>
+  INSTALLMENT_FIELDS.some(({ amountKey }) => (parseFloat(form[amountKey]) || 0) > 0);
+
 const buildInitialForm = (mode, feesData) => {
   if (mode === 'edit' && feesData) {
+    const installmentEntries = Object.fromEntries(
+      INSTALLMENT_FIELDS.flatMap(({ num, dateKey, detailsKey, refKey, amountKey }) => {
+        const dateVal = num === 1
+          ? toDateInputValue(pick(feesData, 'date', 'Date', 'DATE'))
+          : toDateInputValue(pick(feesData, `date${num}`, `Date${num}`, `DATE${num}`));
+        const detailsVal = pick(
+          feesData,
+          `detials${num}`,
+          `details${num}`,
+          `DETIALS${num}`,
+          `Details${num}`
+        );
+        const refVal = pick(feesData, `ref${num}`, `REF${num}`, `Ref${num}`);
+        const amtVal = pick(feesData, `amount${num}`, `AMOUNT${num}`, `Amount${num}`);
+        return [
+          [dateKey, dateVal],
+          [detailsKey, detailsVal],
+          [refKey, refVal],
+          [amountKey, amtVal],
+        ];
+      })
+    );
+
     return {
       studentId: pick(feesData, 'Student_ID', 'student_id', 'Student ID'),
       name: pick(feesData, 'NAME', 'name', 'Name'),
@@ -167,22 +200,7 @@ const buildInitialForm = (mode, feesData) => {
       totalNetFee: pick(feesData, 'TOTAL NET FEE', 'total_net_fee', 'Total Net Fee'),
       paidFee: pick(feesData, 'PAID FEE', 'paid_fee', 'Paid Fee'),
       pendingFee: pick(feesData, 'PENDING FEE', 'pending_fee', 'Pending Fee'),
-      date: toDateInputValue(pick(feesData, 'date', 'Date', 'DATE')),
-      details1: pick(feesData, 'detials1', 'details1', 'DETIALS1', 'Details1'),
-      ref1: pick(feesData, 'ref1', 'REF1', 'Ref1'),
-      amount1: pick(feesData, 'amount1', 'AMOUNT1', 'Amount1'),
-      date2: toDateInputValue(pick(feesData, 'date2', 'Date2', 'DATE2')),
-      details2: pick(feesData, 'detials2', 'details2', 'DETIALS2'),
-      ref2: pick(feesData, 'ref2', 'REF2'),
-      amount2: pick(feesData, 'amount2', 'AMOUNT2'),
-      date3: toDateInputValue(pick(feesData, 'date3', 'Date3', 'DATE3')),
-      details3: pick(feesData, 'detials3', 'details3', 'DETIALS3'),
-      ref3: pick(feesData, 'ref3', 'REF3'),
-      amount3: pick(feesData, 'amount3', 'AMOUNT3'),
-      date4: toDateInputValue(pick(feesData, 'date4', 'Date4', 'DATE4')),
-      details4: pick(feesData, 'detials4', 'details4', 'DETIALS4'),
-      ref4: pick(feesData, 'ref4', 'REF4'),
-      amount4: pick(feesData, 'amount4', 'AMOUNT4'),
+      ...installmentEntries,
     };
   }
   return { ...EMPTY_FORM };
@@ -198,10 +216,11 @@ export default function FeesModals({
 }) {
   const initialForm = useMemo(() => (isOpen ? buildInitialForm(mode, feesData) : EMPTY_FORM), [isOpen, mode, feesData]);
   const [formData, setFormData] = useState(initialForm);
+  const [visibleInstallments, setVisibleInstallments] = useState(() =>
+    getInitialVisibleInstallments(initialForm)
+  );
   const [installmentsTouched, setInstallmentsTouched] = useState(() =>
-    [initialForm.amount1, initialForm.amount2, initialForm.amount3, initialForm.amount4].some(
-      (v) => (parseFloat(v) || 0) > 0
-    )
+    hasAnyPositiveInstallment(initialForm)
   );
   const [validationError, setValidationError] = useState('');
   const [students, setStudents] = useState([]);
@@ -318,12 +337,12 @@ export default function FeesModals({
       const next = buildInitialForm(mode, feesData);
       originalStudentIdRef.current = next.studentId;
       setFormData(next);
-      setInstallmentsTouched(
-        [next.amount1, next.amount2, next.amount3, next.amount4].some((v) => (parseFloat(v) || 0) > 0)
-      );
+      setVisibleInstallments(getInitialVisibleInstallments(next));
+      setInstallmentsTouched(hasAnyPositiveInstallment(next));
     } else {
       originalStudentIdRef.current = '';
       setFormData(EMPTY_FORM);
+      setVisibleInstallments(BASE_INSTALLMENTS);
       setInstallmentsTouched(false);
     }
   }, [isOpen, mode, feesData]);
@@ -345,10 +364,28 @@ export default function FeesModals({
   const handleChange = (e) => {
     const { name, value } = e.target;
     setValidationError('');
-    if (['amount1', 'amount2', 'amount3', 'amount4'].includes(name)) {
+    if (INSTALLMENT_AMOUNT_KEYS.has(name)) {
       setInstallmentsTouched(true);
     }
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddInstallment = () => {
+    setVisibleInstallments((prev) => Math.min(MAX_INSTALLMENTS, prev + 1));
+  };
+
+  const handleRemoveExtraInstallment = (inst) => {
+    setValidationError('');
+    setFormData((prev) => ({
+      ...prev,
+      [inst.dateKey]: '',
+      [inst.amountKey]: '',
+      [inst.detailsKey]: '',
+      [inst.refKey]: '',
+    }));
+    if (inst.num === visibleInstallments && visibleInstallments > BASE_INSTALLMENTS) {
+      setVisibleInstallments((prev) => Math.max(BASE_INSTALLMENTS, prev - 1));
+    }
   };
 
   const validateBeforeSave = () => {
@@ -590,45 +627,56 @@ export default function FeesModals({
             )}
           </Section>
 
-          {/* Installment 1 */}
-          <Section title="Payment Installment 1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Date" name="date" type="date" value={formData.date} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount1" inputMode="numeric" value={formData.amount1} onChange={handleChange} disabled={loading} placeholder="0" />
-              <Field label="Details / Remarks" name="details1" value={formData.details1} onChange={handleChange} disabled={loading} placeholder="e.g. Cash payment" />
-              <Field label="Reference No." name="ref1" value={formData.ref1} onChange={handleChange} disabled={loading} placeholder="e.g. TXN001" />
-            </div>
-          </Section>
+          {/* Installments 1..N (default 4, expandable up to 10 via + button) */}
+          {INSTALLMENT_FIELDS.slice(0, visibleInstallments).map((inst) => {
+            const placeholders = {
+              1: 'e.g. Cash payment',
+              2: 'e.g. Online transfer',
+              3: 'e.g. Cheque',
+              4: 'e.g. UPI',
+            };
+            return (
+              <Section
+                key={inst.num}
+                title={`Payment Installment ${inst.num}`}
+                action={
+                  inst.num > BASE_INSTALLMENTS && inst.num === visibleInstallments ? (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveExtraInstallment(inst)}
+                      disabled={loading}
+                      className="text-xs font-medium text-rose-500 hover:text-rose-600 disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  ) : null
+                }
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Date" name={inst.dateKey} type="date" value={formData[inst.dateKey]} onChange={handleChange} disabled={loading} />
+                  <Field label="Amount" name={inst.amountKey} inputMode="numeric" value={formData[inst.amountKey]} onChange={handleChange} disabled={loading} placeholder="0" />
+                  <Field label="Details / Remarks" name={inst.detailsKey} value={formData[inst.detailsKey]} onChange={handleChange} disabled={loading} placeholder={placeholders[inst.num] || 'e.g. UPI / Cash'} />
+                  <Field label="Reference No." name={inst.refKey} value={formData[inst.refKey]} onChange={handleChange} disabled={loading} placeholder={`e.g. TXN${String(inst.num).padStart(3, '0')}`} />
+                </div>
+              </Section>
+            );
+          })}
 
-          {/* Installment 2 */}
-          <Section title="Payment Installment 2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Date" name="date2" type="date" value={formData.date2} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount2" inputMode="numeric" value={formData.amount2} onChange={handleChange} disabled={loading} placeholder="0" />
-              <Field label="Details / Remarks" name="details2" value={formData.details2} onChange={handleChange} disabled={loading} placeholder="e.g. Online transfer" />
-              <Field label="Reference No." name="ref2" value={formData.ref2} onChange={handleChange} disabled={loading} placeholder="e.g. TXN002" />
+          {visibleInstallments < MAX_INSTALLMENTS && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleAddInstallment}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-brand-blue/40 bg-brand-blue/5 px-4 py-2 text-xs font-semibold text-brand-blue transition hover:bg-brand-blue/10 active:scale-95 disabled:opacity-50 dark:border-brand-blue/50 dark:bg-brand-blue/10 dark:text-blue-300"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add Installment {visibleInstallments + 1}</span>
+              </button>
             </div>
-          </Section>
-
-          {/* Installment 3 */}
-          <Section title="Payment Installment 3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Date" name="date3" type="date" value={formData.date3} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount3" inputMode="numeric" value={formData.amount3} onChange={handleChange} disabled={loading} placeholder="0" />
-              <Field label="Details / Remarks" name="details3" value={formData.details3} onChange={handleChange} disabled={loading} placeholder="e.g. Cheque" />
-              <Field label="Reference No." name="ref3" value={formData.ref3} onChange={handleChange} disabled={loading} placeholder="e.g. TXN003" />
-            </div>
-          </Section>
-
-          {/* Installment 4 */}
-          <Section title="Payment Installment 4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Date" name="date4" type="date" value={formData.date4} onChange={handleChange} disabled={loading} />
-              <Field label="Amount" name="amount4" inputMode="numeric" value={formData.amount4} onChange={handleChange} disabled={loading} placeholder="0" />
-              <Field label="Details / Remarks" name="details4" value={formData.details4} onChange={handleChange} disabled={loading} placeholder="e.g. UPI" />
-              <Field label="Reference No." name="ref4" value={formData.ref4} onChange={handleChange} disabled={loading} placeholder="e.g. TXN004" />
-            </div>
-          </Section>
+          )}
 
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -649,13 +697,14 @@ export default function FeesModals({
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, action, children }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
         <span className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-        {title}
+        <span>{title}</span>
         <span className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+        {action}
       </p>
       {children}
     </div>

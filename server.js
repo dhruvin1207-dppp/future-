@@ -1228,13 +1228,19 @@ console.log('Fees sheet name:', FEES_SHEET_NAME);
 const INACTIVE_FEE_TX_REGEX = /\b(failed|fail|cancelled|canceled|cancel|pending|bounced|rejected|reversed)\b/i;
 const recentFeeSubmissions = new Map();
 
+const MAX_FEE_INSTALLMENTS = 10;
+
 const sanitizeFeePayload = (body) => {
-  const installments = [
-    { num: 1, amtKey: 'amount1', detailsKey: 'details1', altDetailsKey: 'detials1', refKey: 'ref1' },
-    { num: 2, amtKey: 'amount2', detailsKey: 'details2', altDetailsKey: 'detials2', refKey: 'ref2' },
-    { num: 3, amtKey: 'amount3', detailsKey: 'details3', altDetailsKey: 'detials3', refKey: 'ref3' },
-    { num: 4, amtKey: 'amount4', detailsKey: 'details4', altDetailsKey: 'detials4', refKey: 'ref4' },
-  ];
+  const installments = Array.from({ length: MAX_FEE_INSTALLMENTS }, (_, idx) => {
+    const num = idx + 1;
+    return {
+      num,
+      amtKey: `amount${num}`,
+      detailsKey: `details${num}`,
+      altDetailsKey: `detials${num}`,
+      refKey: `ref${num}`,
+    };
+  });
 
   const seenRefs = new Map();
   let installmentSum = 0;
@@ -1337,29 +1343,22 @@ const mapFeesBodyToRowWithHeaders = (body, headers, existingRow = null) => {
     if (key === 'paidfee') return String(body.paidFee ?? body['PAID FEE'] ?? '').trim();
     if (key === 'pendingfee') return String(body.pendingFee ?? body['PENDING FEE'] ?? '').trim();
 
-    // Installment 1
+    // Installments 1..10
     if (key === 'date') return String(body.date ?? body.Date ?? '').trim();
-    if (key === 'detials1' || key === 'details1') return String(body.details1 ?? body.detials1 ?? '').trim();
-    if (key === 'ref1') return String(body.ref1 ?? '').trim();
-    if (key === 'amount1') return String(body.amount1 ?? '').trim();
+    const dateMatch = key.match(/^date(\d+)$/);
+    if (dateMatch) return String(body[`date${dateMatch[1]}`] ?? '').trim();
 
-    // Installment 2
-    if (key === 'date2') return String(body.date2 ?? '').trim();
-    if (key === 'detials2' || key === 'details2') return String(body.details2 ?? body.detials2 ?? '').trim();
-    if (key === 'ref2') return String(body.ref2 ?? '').trim();
-    if (key === 'amount2') return String(body.amount2 ?? '').trim();
+    const detailsMatch = key.match(/^(?:detials|details)(\d+)$/);
+    if (detailsMatch) {
+      const n = detailsMatch[1];
+      return String(body[`details${n}`] ?? body[`detials${n}`] ?? '').trim();
+    }
 
-    // Installment 3
-    if (key === 'date3') return String(body.date3 ?? '').trim();
-    if (key === 'detials3' || key === 'details3') return String(body.details3 ?? body.detials3 ?? '').trim();
-    if (key === 'ref3') return String(body.ref3 ?? '').trim();
-    if (key === 'amount3') return String(body.amount3 ?? '').trim();
+    const refMatch = key.match(/^ref(\d+)$/);
+    if (refMatch) return String(body[`ref${refMatch[1]}`] ?? '').trim();
 
-    // Installment 4
-    if (key === 'date4') return String(body.date4 ?? '').trim();
-    if (key === 'detials4' || key === 'details4') return String(body.details4 ?? body.detials4 ?? '').trim();
-    if (key === 'ref4') return String(body.ref4 ?? '').trim();
-    if (key === 'amount4') return String(body.amount4 ?? '').trim();
+    const amtMatch = key.match(/^amount(\d+)$/);
+    if (amtMatch) return String(body[`amount${amtMatch[1]}`] ?? '').trim();
 
     if (existingRow && body[header] === undefined) return existingVal;
     return String(body[header] ?? '').trim();
@@ -1387,7 +1386,7 @@ app.post('/api/fees', async (req, res) => {
     // Fetch headers first
     const headerData = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${FEES_SHEET_NAME}!A1:Z1`,
+      range: `${FEES_SHEET_NAME}!A1:AZ1`,
     });
     const headers = headerData.data.values[0] || [];
 
@@ -1433,11 +1432,11 @@ app.put('/api/fees/:rowId', async (req, res) => {
     const [headerData, existingRowRes] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${FEES_SHEET_NAME}!A1:Z1`,
+        range: `${FEES_SHEET_NAME}!A1:AZ1`,
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${FEES_SHEET_NAME}!A${rowNumber}:Z${rowNumber}`,
+        range: `${FEES_SHEET_NAME}!A${rowNumber}:AZ${rowNumber}`,
       }),
     ]);
     const headers = headerData.data.values?.[0] || [];
